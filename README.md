@@ -8,6 +8,8 @@
 
 **A lightweight, highly customizable dynamic and animated wallpaper engine for Windows.**
 
+*(Maybe on Linux and Mac too in the future)*
+
 ---
 
 ### ⚡ Features
@@ -18,6 +20,9 @@
   - Attach and render custom glsl shaders directly onto your desktop
 - **🌙 Lua Scripting:** 
   - Highly extensible and easily configurable. Write simple or complex Luau scripts to automate transitions and logic
+- 🚫 **No AI Slop**
+    - Purely written by passionete single-brain-celled autistic individual
+
 
 ---
 
