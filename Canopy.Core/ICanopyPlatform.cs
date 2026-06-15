@@ -8,5 +8,5 @@ public interface ICanopyPlatform
 
     void Initialize();
 
-    void InjectIntoDesktop(IntPtr sdlWindowHandle);
+    void InjectIntoDesktop(IntPtr chibiWindowHandle);
 }

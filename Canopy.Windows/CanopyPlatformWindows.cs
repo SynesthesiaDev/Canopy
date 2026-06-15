@@ -3,6 +3,7 @@
 
 using Serilog;
 using Synesthesia.Utils;
+using Vanara.PInvoke;
 using WinEventHook;
 
 namespace Canopy.Windows;
@@ -15,21 +16,24 @@ public class CanopyPlatformWindows : ICanopyPlatform
     private bool layeredShellView;
     private WindowEventHook workerWHook = null!;
     private IntPtr windowHandle = IntPtr.Zero;
+    private ChibiPlatform chibiPlatform;
 
     public void Initialize()
     {
-        var sdl = new SDL3WindowHost(this);
-        sdl.Initialize();
-        sdl.RunWindow();
+        chibiPlatform = new ChibiPlatform(this);
+        chibiPlatform.Run();
     }
 
     // !! This is not AI-made, I am just leaving comments here
     // for whoever wants to do this in the future and wants to learn from this source code
     // <3
 
-    public void InjectIntoDesktop(IntPtr sdlWindowHandle)
+    public void InjectIntoDesktop(IntPtr chibiWindowHandle)
     {
-        windowHandle = sdlWindowHandle;
+        windowHandle = chibiWindowHandle;
+
+        WindowDiagnostics.DumpTree(progman, "BEFORE injection");
+
         Log.Verbose("Creating WorkerW..");
 
         // Find progman
@@ -66,14 +70,30 @@ public class CanopyPlatformWindows : ICanopyPlatform
             return true;
         }, IntPtr.Zero);
 
+        if (workerW == IntPtr.Zero)
+        {
+            Log.Error("WorkerW not found after EnumWindows — SHELLDLL_DefView may still be in Progman");
+            // Fallback: check directly inside Progman
+            shellDllDefView = Native.FindWindowEx(progman, IntPtr.Zero, "SHELLDLL_DefView", IntPtr.Zero);
+            workerW = progman; // parent to Progman itself as fallback
+        }
+
         if (layeredShellView)
+        {
+            shellDllDefView = Native.FindWindowEx(progman, IntPtr.Zero, "SHELLDLL_DefView", IntPtr.Zero);
             workerW = Native.FindWindowEx(progman, IntPtr.Zero, "WorkerW", IntPtr.Zero);
+            Log.Information("LayeredShell: shellDllDefView={defView}, workerW={workerW}", shellDllDefView, workerW);
+        }
 
         originalWorkerW = NativeUtils.GetDesktopWorkerW();
 
         Log.Information("WorkerW created ({workerW})", workerW);
 
-        attachWindowToWorkerW(sdlWindowHandle);
+        attachWindowToWorkerW(chibiWindowHandle);
+
+        WindowDiagnostics.DumpTree(progman, "AFTER injection");
+
+        WindowDiagnostics.DumpWindow(chibiWindowHandle, "Chibi Window");
 
         try
         {
@@ -129,44 +149,71 @@ public class CanopyPlatformWindows : ICanopyPlatform
     }
 
     private void attachWindowToWorkerW(IntPtr sdlWindowHandle)
+{
+    var styleFlags = User32.GetWindowLong(sdlWindowHandle, User32.WindowLongFlags.GWL_STYLE);
+
+    styleFlags &= (int)~(User32.WindowStyles.WS_POPUP | User32.WindowStyles.WS_CAPTION | User32.WindowStyles.WS_THICKFRAME | User32.WindowStyles.WS_MINIMIZEBOX | User32.WindowStyles.WS_MAXIMIZEBOX);
+    styleFlags |= (int)(User32.WindowStyles.WS_CHILD |
+                        User32.WindowStyles.WS_CLIPSIBLINGS |
+                        User32.WindowStyles.WS_CLIPCHILDREN);
+
+    User32.SetWindowLong(sdlWindowHandle, User32.WindowLongFlags.GWL_STYLE, styleFlags);
+
+    User32.SetWindowPos(sdlWindowHandle, 0, 0, 0, 0, 0,
+        User32.SetWindowPosFlags.SWP_NOMOVE | User32.SetWindowPosFlags.SWP_NOSIZE |
+        User32.SetWindowPosFlags.SWP_NOZORDER | User32.SetWindowPosFlags.SWP_FRAMECHANGED);
+
+    var parent = layeredShellView ? progman : workerW;
+    Native.SetParent(sdlWindowHandle, parent);
+
+    Native.GetWindowRect(parent, out Native.RECT prct);
+
+    var windowFlags = (int)(
+        Native.SetWindowPosFlags.SWP_NOACTIVATE |
+        Native.SetWindowPosFlags.SWP_SHOWWINDOW
+    );
+
+    if (layeredShellView && shellDllDefView != IntPtr.Zero)
     {
-        Native.SetParent(sdlWindowHandle, workerW);
-
-        var windowFlags = (int)(
-            Native.SetWindowPosFlags.SWP_NOACTIVATE |
-            Native.SetWindowPosFlags.SWP_SHOWWINDOW
+        // put window below the icon layer in Z-order (siblings under Progman)
+        Native.SetWindowPos(
+            sdlWindowHandle,
+            (int)shellDllDefView,   // insert AFTER
+            0, 0,
+            prct.Right - prct.Left,
+            prct.Bottom - prct.Top,
+            windowFlags
         );
-
+    }
+    else
+    {
         Native.SetWindowPos(
             sdlWindowHandle,
             (int)Native.HWNDInsertAfter.HWND_TOP,
-            0,
-            0,
-            Native.GetSystemMetrics((int)Native.SystemMetric.SM_CXVIRTUALSCREEN),
-            Native.GetSystemMetrics((int)Native.SystemMetric.SM_CYVIRTUALSCREEN),
+            0, 0,
+            prct.Right - prct.Left,
+            prct.Bottom - prct.Top,
             windowFlags
         );
-
-        ensureWorkerWzOrder();
-
-        Log.Information("Wallpaper attached to WorkerW.");
     }
+
+    ensureWorkerWzOrder();
+    Log.Information("Wallpaper attached (parent={parent}, layered={layered})", parent, layeredShellView);
+}
 
     private void ensureWorkerWzOrder()
     {
         if (!layeredShellView) return;
+        if (shellDllDefView == IntPtr.Zero || windowHandle == IntPtr.Zero) return;
 
-        var lastchild = NativeUtils.GetLastChildWindow(progman);
-        Log.Information("Last child of Progman: {lastChild}", NativeUtils.GetLastChildWindow(progman));
-        Log.Information("WorkerW: {workerW}", workerW);
+        var windowFlags = (int)(Native.SetWindowPosFlags.SWP_NOMOVE
+                                | Native.SetWindowPosFlags.SWP_NOSIZE
+                                | Native.SetWindowPosFlags.SWP_NOACTIVATE);
 
-        if (lastchild != workerW)
-        {
-            var windowFlags = (int)(Native.SetWindowPosFlags.SWP_NOMOVE
-                                    | Native.SetWindowPosFlags.SWP_NOSIZE
-                                    | Native.SetWindowPosFlags.SWP_NOACTIVATE);
-
-            Native.SetWindowPos(workerW, (int)Native.HWNDInsertAfter.HWND_BOTTOM, 0, 0, 0, 0, windowFlags);
-        }
+        //window below icons, as a sibling under Progman
+        Native.SetWindowPos(windowHandle, (int)shellDllDefView, 0, 0, 0, 0, windowFlags);
+        Log.Information("Z-order re-asserted: SDL window below shellDllDefView");
     }
+
+    // FUCKKK
 }

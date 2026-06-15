@@ -6,7 +6,6 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using Canopy.Extensions;
 using Canopy.Rendering.Shaders;
-using SDL3;
 using Serilog;
 using Silk.NET.OpenGL;
 using Synesthesia.Utils.Extensions;
@@ -47,7 +46,7 @@ public class OpenGLRenderer : IDisposable
 
     public Shader DefaultShader = null!;
 
-    public required OpenGLSurface Surface { get; init; }
+    public required IWindowSurface Surface { get; init; }
 
     public GL OpenGL
     {
@@ -84,14 +83,14 @@ public class OpenGLRenderer : IDisposable
 
         var gl = GL.GetApi(name =>
         {
-            var ptr = OpenGLSurface.GetProcAddress(name);
+            var ptr = Surface.NativeContext.GetProcAddress(name);
             return ptr;
         });
 
         OpenGL = gl ?? throw new InvalidOperationException("Silk.NET could not bind to OpenGL");
 
-        BackBufferHeight = Surface.BackBufferHeight;
-        BackBufferWidth = Surface.BackBufferWidth;
+        BackBufferHeight = (int)Surface.GetScreenSize().X;
+        BackBufferWidth = (int)Surface.GetScreenSize().Y;
 
         openGlInitialized = true;
         Resize(BackBufferWidth, BackBufferHeight);
@@ -197,7 +196,7 @@ public class OpenGLRenderer : IDisposable
 
     public void Resize(int width, int height)
     {
-        Log.Verbose("Viewport resize to {width}x{height}", width, height);
+        Log.Verbose("(OpenGL Renderer) Viewport resize to {width}x{height}", width, height);
         EnsureInitialized();
         pushViewport();
     }
@@ -210,15 +209,12 @@ public class OpenGLRenderer : IDisposable
 
         CurrentShader = shader;
         shader.Use();
-        // updateShaderMatrix();
         cacheShaderUniformLocations();
     }
 
     public void UnbindShader()
     {
-        // ThreadSafety.AssertRunningOnRenderThread();
         BindShader(DefaultShader);
-        // updateShaderMatrix();
     }
 
     public void BeginDrawing()
@@ -256,13 +252,13 @@ public class OpenGLRenderer : IDisposable
 
     private void pushViewport()
     {
-        SDL.GetWindowSizeInPixels(Surface.WindowHandle, out int w, out int h);
-        BackBufferWidth = w;
-        BackBufferHeight = h;
+        var size = Surface.GetScreenSize();
+        BackBufferWidth = (int)size.X;
+        BackBufferHeight = (int)size.Y;
 
-        projectionMatrix = Matrix4x4.CreateOrthographicOffCenter(0, w, h, 0, -1, 1);
+        projectionMatrix = Matrix4x4.CreateOrthographicOffCenter(0, BackBufferWidth, BackBufferHeight, 0, -1, 1);
 
-        OpenGL.Viewport(0, 0, (uint)w, (uint)h);
+        OpenGL.Viewport(0, 0, (uint)BackBufferWidth, (uint)BackBufferHeight);
     }
 
     public void CompileDefaultShaders()

@@ -23,7 +23,6 @@
 - 🚫 **No AI Slop**
     - Purely written by passionete single-brain-celled autistic individual
 
-
 ---
 
 ### 🚀 Getting Started
