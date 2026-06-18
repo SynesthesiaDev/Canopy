@@ -2,9 +2,10 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Concurrent;
+using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using Canopy.Extensions;
+using Canopy.Graphics;
 using Canopy.Rendering.Shaders;
 using Serilog;
 using Silk.NET.OpenGL;
@@ -18,33 +19,16 @@ public class OpenGLRenderer : IDisposable
 {
     private const ClearFlags default_clear_flags = ClearFlags.ColorBuffer | ClearFlags.DepthBuffer | ClearFlags.StencilBuffer;
 
-    private readonly float[] vertices =
-    [
-        0.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 0.0f, 1.0f, 0.0f
-    ];
-
-    private readonly uint[] indices =
-    [
-        0, 1, 2,
-        0, 2, 3
-    ];
-
     private const string shader_uniform_texture = "u_texture";
-    private const string shader_uniform_use_texture = "u_use_texture";
-    private const string shader_uniform_transform_matrix = "u_transform";
-    private const string shader_uniform_alpha = "u_alpha";
 
     // Cache so we don't query with string every frame. That's expensive on gc allocations!!
-    private int textureShaderLocation, useTextureShaderLocation, transformShaderLocation, alphaShaderLocation;
-    private uint vao, vbo, ebo;
+    private int textureShaderLocation;
 
     private bool openGlInitialized;
-    private Matrix4x4 projectionMatrix;
 
-    public Shader DefaultShader = null!;
+    public Shader DefaultShader { get; private set; } = null!;
+
+    public VertexBatch<Vertex2D> VertexBatch2D { get; private set; } = null!;
 
     public required IWindowSurface Surface { get; init; }
 
@@ -59,18 +43,11 @@ public class OpenGLRenderer : IDisposable
         private set;
     } = null!;
 
-    public bool CanDraw => BackBufferWidth > 0 && BackBufferHeight > 0;
-
-    public int BackBufferWidth { get; private set; }
-
-    public int BackBufferHeight { get; private set; }
-
     public ClearFlags ClearFlags = default_clear_flags;
 
-    public Matrix4x4 Matrix { get; private set; } = Matrix4x4.Identity;
-
-    public Matrix4x4 InverseMatrix { get; private set; } = Matrix4x4.Identity;
-
+    public bool CanDraw => BackBufferWidth > 0 && BackBufferHeight > 0;
+    public int BackBufferWidth { get; private set; }
+    public int BackBufferHeight { get; private set; }
     public Texture? CurrentTexture { get; private set; }
     public Shader CurrentShader { get; private set; } = null!;
 
@@ -89,55 +66,14 @@ public class OpenGLRenderer : IDisposable
 
         OpenGL = gl ?? throw new InvalidOperationException("Silk.NET could not bind to OpenGL");
 
-        BackBufferHeight = (int)Surface.GetScreenSize().X;
-        BackBufferWidth = (int)Surface.GetScreenSize().Y;
+        BackBufferWidth = (int)Surface.GetScreenSize().X;
+        BackBufferHeight = (int)Surface.GetScreenSize().Y;
+
 
         openGlInitialized = true;
         Resize(BackBufferWidth, BackBufferHeight);
 
-        gl.GenVertexArrays(1, out vao);
-        gl.BindVertexArray(vao);
-        gl.CheckError("Generate and bind vao array");
-
-        gl.GenBuffers(1, out vbo);
-        gl.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
-        gl.CheckError("Generate and bind vbo buffer");
-
-        unsafe
-        {
-            fixed (float* pointer = vertices)
-            {
-                gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(vertices.Length * sizeof(float)), pointer, BufferUsageARB.StaticDraw);
-            }
-        }
-
-        gl.GenBuffers(1, out ebo);
-        gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, ebo);
-        gl.CheckError("Generate and bind ebo buffer");
-
-        unsafe
-        {
-            fixed (uint* pointer = indices)
-            {
-                gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint)(indices.Length * sizeof(uint)), pointer, BufferUsageARB.StaticDraw);
-            }
-        }
-
-        unsafe
-        {
-            //TODO move to Vertex2d class with proper attributes like
-            // [VertexInfo(4, 1, VertexAttribPointerType.Float)]
-            // public readonly float Alpha = alpha;
-
-            // 0 - Position (Vector2)
-            gl.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 4 * sizeof(float), (void*)0);
-            // 1 - TexCoord (Vector2)
-            gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-            gl.CheckError("Setup vertex attributes");
-
-            gl.BindVertexArray(0);
-            gl.CheckError("unbind");
-        }
+        VertexBatch2D = new VertexBatch<Vertex2D>(OpenGL);
 
         var version = OpenGL.GetStringS(GLEnum.Version);
         var shadingLanguageVersion = OpenGL.GetStringS(GLEnum.ShadingLanguageVersion);
@@ -152,37 +88,82 @@ public class OpenGLRenderer : IDisposable
         Log.Debug($"- GLSL:      {shadingLanguageVersion}");
     }
 
-    public void DrawQuad(Vector2 position, Vector2 size, float alpha, Texture? texture = null)
+    public void DrawQuad(DrawMatrix drawMatrix, Vector2 position, Vector2 size, uint packedColor, float alpha, float cornerRadius, Texture? texture, RectangleF? textureCoord)
     {
-        unsafe
+        EnsureInitialized();
+        if (texture is { IsUploaded: false }) return;
+
+        if (texture != CurrentTexture)
         {
-            if (texture is { IsUploaded: false }) return;
-
-            EnsureInitialized();
-            if (texture != CurrentTexture)
-            {
-                BindTexture(texture);
-            }
-
-            Matrix4x4 modelMatrix = Matrix4x4.CreateScale(size.X, size.Y, 1.0f) * Matrix4x4.CreateTranslation(position.X, position.Y, 0.0f);
-            Matrix4x4 finalTransform = modelMatrix * Matrix * projectionMatrix;
-
-            CurrentShader.SetMatrix4(transformShaderLocation, finalTransform);
-            CurrentShader.SetFloat(alphaShaderLocation, alpha);
-            CurrentShader.SetBool(useTextureShaderLocation, texture != null);
-
-            OpenGL.BindVertexArray(vao);
-            OpenGL.CheckError("bind vao");
-            OpenGL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, (void*)0);
-            OpenGL.CheckError("draw to vao");
-            OpenGL.BindVertexArray(0);
-            OpenGL.CheckError("unbind vao");
+            BindTexture(texture);
         }
+
+        var v0 = position;
+        var v1 = position with { Y = position.Y + size.Y };
+        var v2 = position + size;
+        var v3 = position with { X = position.X + size.X };
+
+        v0 = Vector2.Transform(v0, drawMatrix.Matrix);
+        v1 = Vector2.Transform(v1, drawMatrix.Matrix);
+        v2 = Vector2.Transform(v2, drawMatrix.Matrix);
+        v3 = Vector2.Transform(v3, drawMatrix.Matrix);
+
+        var tex = textureCoord ?? new Rectangle(0, 0, 1, 1);
+
+        VertexBatch2D.PushVertex(new Vertex2D(
+            position: v0,
+            size: size,
+            texCoord: new Vector2(tex.Left, tex.Top),
+            color: packedColor,
+            alpha: alpha,
+            radius: cornerRadius,
+            localUv: new Vector2(0, 0)
+        ));
+
+        VertexBatch2D.PushVertex(new Vertex2D(
+            position: v1,
+            size: size,
+            texCoord: new Vector2(tex.Left, tex.Bottom),
+            color: packedColor,
+            alpha: alpha,
+            radius: cornerRadius,
+            localUv: new Vector2(0, 1)
+        ));
+
+        VertexBatch2D.PushVertex(new Vertex2D(
+            position: v2,
+            size: size,
+            texCoord: new Vector2(tex.Right, tex.Bottom),
+            color: packedColor,
+            alpha: alpha,
+            radius: cornerRadius,
+            localUv: new Vector2(1, 1)
+        ));
+
+        VertexBatch2D.PushVertex(new Vertex2D(
+            position: v3,
+            size: size,
+            texCoord: new Vector2(tex.Right, tex.Top),
+            color: packedColor,
+            alpha: alpha,
+            radius: cornerRadius,
+            localUv: new Vector2(1, 0)
+        ));
+
+        // old
+        // Matrix4x4 modelMatrix = Matrix4x4.CreateScale(size.X, size.Y, 1.0f) * Matrix4x4.CreateTranslation(position.X, position.Y, 0.0f);
+        // Matrix4x4 finalTransform = modelMatrix * Matrix * projectionMatrix;
+        //
+        // CurrentShader.SetMatrix4(transformShaderLocation, finalTransform);
+        // CurrentShader.SetFloat(alphaShaderLocation, alpha);
+        // CurrentShader.SetBool(useTextureShaderLocation, texture != null);
     }
 
     public void BindTexture(Texture? texture)
     {
         if (CurrentTexture == texture) return;
+        VertexBatch2D.Flush();
+
         CurrentTexture = texture;
         if (texture != null && texture.Bind(OpenGL))
         {
@@ -206,6 +187,8 @@ public class OpenGLRenderer : IDisposable
         // ThreadSafety.AssertRunningOnRenderThread();
 
         if (CurrentShader == shader) return;
+
+        VertexBatch2D.Flush();
 
         CurrentShader = shader;
         shader.Use();
@@ -243,6 +226,7 @@ public class OpenGLRenderer : IDisposable
     public void EndDrawing()
     {
         EnsureInitialized();
+        VertexBatch2D.Flush();
 
         Surface.SwapBuffers();
         BindTexture(null);
@@ -256,8 +240,6 @@ public class OpenGLRenderer : IDisposable
         BackBufferWidth = (int)size.X;
         BackBufferHeight = (int)size.Y;
 
-        projectionMatrix = Matrix4x4.CreateOrthographicOffCenter(0, BackBufferWidth, BackBufferHeight, 0, -1, 1);
-
         OpenGL.Viewport(0, 0, (uint)BackBufferWidth, (uint)BackBufferHeight);
     }
 
@@ -270,9 +252,6 @@ public class OpenGLRenderer : IDisposable
     private void cacheShaderUniformLocations()
     {
         textureShaderLocation = CurrentShader.GetUniformLocation(shader_uniform_texture);
-        useTextureShaderLocation = CurrentShader.GetUniformLocation(shader_uniform_use_texture);
-        transformShaderLocation = CurrentShader.GetUniformLocation(shader_uniform_transform_matrix);
-        alphaShaderLocation = CurrentShader.GetUniformLocation(shader_uniform_alpha);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -286,10 +265,7 @@ public class OpenGLRenderer : IDisposable
         Log.Verbose("Disposing OpenGLRenderer");
         openGlInitialized = false;
 
-        OpenGL.DeleteBuffer(vbo);
-        OpenGL.DeleteBuffer(ebo);
-        OpenGL.DeleteVertexArray(vao);
-
+        VertexBatch2D.Dispose();
         OpenGL.Dispose();
     }
 }
