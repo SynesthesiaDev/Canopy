@@ -1,4 +1,5 @@
-﻿using Synesthesia.Utils;
+﻿using Canopy.Graphics;
+using Synesthesia.Utils;
 
 namespace Canopy;
 
@@ -9,4 +10,9 @@ public interface ICanopyPlatform
     void Initialize();
 
     void InjectIntoDesktop(IntPtr chibiWindowHandle);
+
+    void HideWindow();
+    void ShowWindow();
+
+    void PushWallpaper(Wallpaper wallpaper);
 }

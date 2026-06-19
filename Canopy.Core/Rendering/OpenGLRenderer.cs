@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using Canopy.Rendering.Shaders;
 using Serilog;
 using Silk.NET.OpenGL;
+using Synesthesia.Utils.Profiler;
 using Shader = Canopy.Rendering.Shaders.Shader;
 using Texture = Canopy.Rendering.Textures.Texture;
 
@@ -15,8 +16,6 @@ namespace Canopy.Rendering;
 
 public class OpenGLRenderer : IDisposable
 {
-    private const string shader_uniform_texture = "u_texture";
-
     // Cache so we don't query with string every frame. That's expensive on gc allocations!!
     private int textureShaderLocation;
 
@@ -46,14 +45,16 @@ public class OpenGLRenderer : IDisposable
     public int BackBufferWidth { get; private set; }
     public int BackBufferHeight { get; private set; }
     public Texture? CurrentTexture { get; private set; }
-    public Shader? CurrentShader { get; private set; } = null!;
+    public Shader? CurrentShader { get; private set; }
 
     public static readonly ConcurrentQueue<Texture> TEXTURE_UPLOAD_QUEUE = new ConcurrentQueue<Texture>();
+    public static readonly ConcurrentQueue<Shader> SHADER_COMPILE_QUEUE = new ConcurrentQueue<Shader>();
 
     public void Initialize()
     {
         if (openGlInitialized) throw new InvalidOperationException("OpenGL is already initialized");
-        Log.Verbose("Initializing OpenGL Renderer");
+        Log.Verbose(" ");
+        Log.Verbose("Initializing OpenGL Renderer..");
 
         var gl = GL.GetApi(name =>
         {
@@ -65,7 +66,6 @@ public class OpenGLRenderer : IDisposable
 
         BackBufferWidth = (int)Surface.GetScreenSize().X;
         BackBufferHeight = (int)Surface.GetScreenSize().Y;
-
 
         openGlInitialized = true;
         Resize(BackBufferWidth, BackBufferHeight);
@@ -85,6 +85,7 @@ public class OpenGLRenderer : IDisposable
         Log.Debug($"- Vendor:    {vendor}");
         Log.Debug($"- Renderer   {renderer}");
         Log.Debug($"- GLSL:      {shadingLanguageVersion}");
+        Log.Debug(" ");
     }
 
     private void initQuadGeometry()
@@ -177,7 +178,6 @@ public class OpenGLRenderer : IDisposable
         BackBufferWidth = width;
         BackBufferHeight = height;
 
-        Log.Verbose("(OpenGL Renderer) Viewport resize to {width}x{height}", width, height);
         EnsureInitialized();
         pushViewport();
     }
@@ -185,7 +185,6 @@ public class OpenGLRenderer : IDisposable
     public void BindShader(Shader shader)
     {
         // ThreadSafety.AssertRunningOnRenderThread();
-
         if (CurrentShader == shader) return;
 
         CurrentShader = shader;
@@ -216,6 +215,12 @@ public class OpenGLRenderer : IDisposable
             texture?.Upload(OpenGL);
         }
 
+        while (!SHADER_COMPILE_QUEUE.IsEmpty)
+        {
+            SHADER_COMPILE_QUEUE.TryDequeue(out var shader);
+            shader?.Compile(OpenGL);
+        }
+
         pushViewport();
     }
 
@@ -244,22 +249,27 @@ public class OpenGLRenderer : IDisposable
             zFarPlane: 1
         );
 
-        CurrentShader.SetMatrix4(projectionUniformLocation, proj);
+        CurrentShader?.SetMatrix4(projectionUniformLocation, proj);
     }
 
     private void compileDefaultShaders()
     {
-        DefaultShader = new Shader(OpenGL, ShaderSources.DEFAULT_VERTEX, ShaderSources.DEFAULT_FRAGMENT);
+        var profiler = Timings.RentAndPush();
+        DefaultShader = new Shader(ShaderSources.DEFAULT_VERTEX, ShaderSources.DEFAULT_FRAGMENT, false);
+        DefaultShader.Compile(OpenGL);
+        var time = profiler.PopAndReturn();
+
+        Log.Verbose("Took {ms}ms to compile default shader", time);
         BindShader(DefaultShader);
     }
 
     private void cacheShaderUniformLocations()
     {
-        textureShaderLocation = CurrentShader.GetUniformLocation("u_texture");
-        projectionUniformLocation = CurrentShader.GetUniformLocation("u_projection");
-        colorUniformLocation = CurrentShader.GetUniformLocation("u_color");
-        alphaUniformLocation = CurrentShader.GetUniformLocation("u_alpha");
-        useTextureUniformLocation = CurrentShader.GetUniformLocation("u_use_texture");
+        textureShaderLocation = CurrentShader!.GetUniformLocation("u_texture");
+        projectionUniformLocation = CurrentShader!.GetUniformLocation("u_projection");
+        colorUniformLocation = CurrentShader!.GetUniformLocation("u_color");
+        alphaUniformLocation = CurrentShader!.GetUniformLocation("u_alpha");
+        useTextureUniformLocation = CurrentShader!.GetUniformLocation("u_use_texture");
     }
 
 

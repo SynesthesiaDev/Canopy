@@ -1,8 +1,13 @@
 ﻿// Copyright (c) 2026 SynesthesiaDev <synesthesiadev@proton.me>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using Canopy.Graphics;
+using Canopy.Rendering;
+using Canopy.Utils;
 using Serilog;
 using Synesthesia.Utils;
+using SynesthesiaDev.Chibi.Core;
+using SynesthesiaDev.Chibi.Core.Enums;
 using Vanara.PInvoke;
 using WinEventHook;
 
@@ -15,14 +20,67 @@ public class CanopyPlatformWindows : ICanopyPlatform
     private IntPtr workerW, progman, shellDllDefView, originalWorkerW;
     private bool layeredShellView;
     private WindowEventHook workerWHook = null!;
-    private IntPtr windowHandle = IntPtr.Zero;
-    private ChibiPlatform chibiPlatform;
 
+    public OpenGLRenderer? OpenGL;
+    public ChibiWindow Window = null!;
+
+    public readonly WallpaperManager WallpaperManager;
+
+    public CanopyPlatformWindows()
+    {
+        WallpaperManager = new WallpaperManager(this);
+    }
 
     public void Initialize()
     {
-        chibiPlatform = new ChibiPlatform(this);
-        chibiPlatform.Run();
+        Window = new ChibiWindow();
+
+        Window.OnWindowCreated.Subscribe(_ =>
+        {
+            var surface = new Gdi32Surface
+            {
+                Window = Window,
+                Handle = Window.WindowHandle,
+                NativeContext = new WindowsGLContext()
+            };
+
+            surface.InitializeGraphicsContext();
+
+            OpenGL = new OpenGLRenderer
+            {
+                Surface = surface
+            };
+
+            OpenGL.Initialize();
+
+            UserLand.EntryPoint(this);
+        });
+
+        Window.OnWindowResized.Subscribe(e =>
+        {
+            OpenGL?.Resize((int)e.Now.X, (int)e.Now.Y);
+        });
+
+        Window.OnFrame += () =>
+        {
+            if (OpenGL == null) return;
+
+            OpenGL.BeginDrawing();
+            WallpaperManager.Draw(OpenGL);
+            OpenGL.EndDrawing();
+        };
+
+        // Start window hidden and unhide it after the first swap to prevent white flash
+        Window.Run(952, 520, WindowFlags.Resizable | WindowFlags.HighPixelDensity | WindowFlags.Hidden);
+    }
+
+    public void HideWindow() => Window.WindowVisible = false;
+    public void ShowWindow() => Window.WindowVisible = true;
+
+    public void PushWallpaper(Wallpaper wallpaper)
+    {
+        WallpaperManager.PushWallpaper(wallpaper);
+        // WallpaperManager.Wallpapers.Add(wallpaper);
     }
 
     // !! This is not AI-made, I am just leaving comments here
@@ -31,8 +89,6 @@ public class CanopyPlatformWindows : ICanopyPlatform
 
     public void InjectIntoDesktop(IntPtr chibiWindowHandle)
     {
-        windowHandle = chibiWindowHandle;
-
         WindowDiagnostics.DumpTree(progman, "BEFORE injection");
 
         Log.Verbose("Creating WorkerW..");
@@ -114,6 +170,7 @@ public class CanopyPlatformWindows : ICanopyPlatform
         }
     }
 
+
     private async void WorkerWHook_EventReceived(object? _, WinEventHookEventArgs e)
     {
         if (e.WindowHandle != workerW || e.EventType != WindowEvent.EVENT_OBJECT_DESTROY)
@@ -123,7 +180,7 @@ public class CanopyPlatformWindows : ICanopyPlatform
 
         if (layeredShellView)
         {
-            InjectIntoDesktop(windowHandle);
+            InjectIntoDesktop(Window.WindowHandle);
 
             // var windowFlags = (int)(Native.SetWindowPosFlags.SWP_NOMOVE |
             //                         Native.SetWindowPosFlags.SWP_NOSIZE |
@@ -205,14 +262,14 @@ public class CanopyPlatformWindows : ICanopyPlatform
     private void ensureWorkerWzOrder()
     {
         if (!layeredShellView) return;
-        if (shellDllDefView == IntPtr.Zero || windowHandle == IntPtr.Zero) return;
+        if (shellDllDefView == IntPtr.Zero || Window.WindowHandle == IntPtr.Zero) return;
 
         var windowFlags = (int)(Native.SetWindowPosFlags.SWP_NOMOVE
                                 | Native.SetWindowPosFlags.SWP_NOSIZE
                                 | Native.SetWindowPosFlags.SWP_NOACTIVATE);
 
         //window below icons, as a sibling under Progman
-        Native.SetWindowPos(windowHandle, (int)shellDllDefView, 0, 0, 0, 0, windowFlags);
+        Native.SetWindowPos(Window.WindowHandle, (int)shellDllDefView, 0, 0, 0, 0, windowFlags);
         Log.Information("Z-order re-asserted: SDL window below shellDllDefView");
     }
 

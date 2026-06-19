@@ -12,7 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="SynesthesiaDev.Chibi.Core" Version="2026.615.2" />
+      <PackageReference Include="SynesthesiaDev.Chibi.Core" Version="2026.619.1" />
       <PackageReference Include="WinEventHook" Version="0.3.6" />
     </ItemGroup>
 

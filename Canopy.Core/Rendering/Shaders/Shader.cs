@@ -11,24 +11,50 @@ namespace Canopy.Rendering.Shaders;
 
 public class Shader : IDisposable
 {
-    private readonly GL gl;
-    public readonly uint Program;
+    public uint Program { get; private set; }
 
     private readonly DenseMap<string, int> uniformCache = new();
 
-    public Shader(GL openGl, string? vertexCode, string? fragmentCode)
+    public bool IsCompiled { get; private set; }
+
+    public bool CompileQueued { get; private set; }
+
+    public bool UploadImmediately { get; }
+
+    public readonly string? Vertex;
+    public readonly string? Fragment;
+
+    private GL? gl;
+
+    public Shader(string? vertexCode, string? fragmentCode, bool uploadImmediately)
     {
-        // ThreadSafety.AssertRunningOnRenderThread();
-
-        gl = openGl;
-
         if (vertexCode == null && fragmentCode == null) throw new OpenGLException("Cannot have both Vertex and Fragment shaders empty");
+
+        Vertex = vertexCode;
+        Fragment = fragmentCode;
+        UploadImmediately = uploadImmediately;
+
+        if(UploadImmediately) EnqueueCompile();
+    }
+
+
+    public void EnqueueCompile()
+    {
+        Log.Verbose("Shader upload enqueued");
+        OpenGLRenderer.SHADER_COMPILE_QUEUE.Enqueue(this);
+        CompileQueued = true;
+    }
+
+    public void Compile(GL opengl)
+    {
+        gl = opengl;
+        CompileQueued = false;
 
         uint? vertexShader = null;
         uint? fragmentShader = null;
 
-        if (vertexCode != null) vertexShader = compileShader(ShaderType.VertexShader, vertexCode);
-        if (fragmentCode != null) fragmentShader = compileShader(ShaderType.FragmentShader, fragmentCode);
+        if (Vertex != null) vertexShader = compileShader(ShaderType.VertexShader, Vertex);
+        if (Fragment != null) fragmentShader = compileShader(ShaderType.FragmentShader, Fragment);
 
         Program = gl.CreateProgram();
 
@@ -42,22 +68,33 @@ public class Shader : IDisposable
 
         if (vertexShader != null) gl.DeleteShader(vertexShader.Value);
         if (fragmentShader != null) gl.DeleteShader(fragmentShader.Value);
+
+        IsCompiled = true;
+
+        Log.Verbose("Compiled shader {this}", this);
+    }
+
+    private void assertGlInitialized()
+    {
+        if (gl == null) throw new InvalidOperationException("Shader is not compiled/being compiled");
     }
 
     public int GetUniformLocation(string uniform)
     {
-        // ThreadSafety.AssertRunningOnRenderThread();
+        assertGlInitialized();
 
         if (uniformCache.Get(uniform, out int cached))
             return cached;
 
-        var location = gl.GetUniformLocation(Program, uniform);
+        var location = gl!.GetUniformLocation(Program, uniform);
         return location != -1 ? location : throw new OpenGLException($"Failed to get shader uniform '{uniform}'");
     }
 
     private uint compileShader(ShaderType shaderType, string code)
     {
-        uint shader = gl.CreateShader(shaderType);
+        assertGlInitialized();
+
+        uint shader = gl!.CreateShader(shaderType);
         gl.ShaderSource(shader, code);
         gl.CompileShader(shader);
 
@@ -70,9 +107,11 @@ public class Shader : IDisposable
 
     public void SetMatrix4(int location, Matrix4x4 matrix)
     {
+        assertGlInitialized();
+
         unsafe
         {
-            gl.UniformMatrix4(location, 1, false, (float*)&matrix);
+            gl!.UniformMatrix4(location, 1, false, (float*)&matrix);
         }
     }
 
@@ -82,7 +121,11 @@ public class Shader : IDisposable
         SetMatrix4(location, matrix);
     }
 
-    public void SetFloat(int location, float value) => gl.Uniform1(location, value);
+    public void SetFloat(int location, float value)
+    {
+        assertGlInitialized();
+        gl!.Uniform1(location, value);
+    }
 
     public void SetFloat(string name, float value)
     {
@@ -90,7 +133,11 @@ public class Shader : IDisposable
         SetFloat(location, value);
     }
 
-    public void SetDouble(int location, double value) => gl.Uniform1(location, value);
+    public void SetDouble(int location, double value)
+    {
+        assertGlInitialized();
+        gl!.Uniform1(location, value);
+    }
 
     public void SetDouble(string name, double value)
     {
@@ -98,7 +145,11 @@ public class Shader : IDisposable
         SetDouble(location, value);
     }
 
-    public void SetInt(int location, int value) => gl.Uniform1(location, value);
+    public void SetInt(int location, int value)
+    {
+        assertGlInitialized();
+        gl!.Uniform1(location, value);
+    }
 
     public void SetInt(string name, int value)
     {
@@ -110,7 +161,11 @@ public class Shader : IDisposable
 
     public void SetBool(string name, bool value) => SetInt(name, value.ToInt());
 
-    public void SetVector2(int location, Vector2 value) => gl.Uniform2(location, value);
+    public void SetVector2(int location, Vector2 value)
+    {
+        assertGlInitialized();
+        gl!.Uniform2(location, value);
+    }
 
     public void SetVector2(string name, Vector2 value)
     {
@@ -118,7 +173,11 @@ public class Shader : IDisposable
         SetVector2(location, value);
     }
 
-    public void SetVector3(int location, Vector3 value) => gl.Uniform3(location, value);
+    public void SetVector3(int location, Vector3 value)
+    {
+        assertGlInitialized();
+        gl!.Uniform3(location, value);
+    }
 
     public void SetVector3(string name, Vector3 value)
     {
@@ -126,7 +185,11 @@ public class Shader : IDisposable
         SetVector3(location, value);
     }
 
-    public void SetVector4(int location, Vector4 value) => gl.Uniform4(location, value);
+    public void SetVector4(int location, Vector4 value)
+    {
+        assertGlInitialized();
+        gl!.Uniform4(location, value);
+    }
 
     public void SetVector4(string name, Vector4 value)
     {
@@ -136,12 +199,18 @@ public class Shader : IDisposable
 
     public void Use()
     {
-        gl.UseProgram(Program);
-        Log.Verbose("Shader {id} bind", Program);
+        assertGlInitialized();
+
+        gl!.UseProgram(Program);
+        Log.Verbose("Bound shader program {id}", Program);
     }
+
+    public override string ToString() => $"Shader(Handle={Program}, Vertex={Vertex != null}, Fragment={Fragment != null}, IsCompiled={IsCompiled}, CompileQueued={CompileQueued})";
 
     public void Dispose()
     {
-        gl.DeleteProgram(Program);
+        Log.Verbose("Disposed shader program {h}", Program);
+        gl?.DeleteProgram(Program);
+        uniformCache.Clear();
     }
 }
