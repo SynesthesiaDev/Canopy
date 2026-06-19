@@ -18,6 +18,7 @@ public class CanopyPlatformWindows : ICanopyPlatform
     private IntPtr windowHandle = IntPtr.Zero;
     private ChibiPlatform chibiPlatform;
 
+
     public void Initialize()
     {
         chibiPlatform = new ChibiPlatform(this);

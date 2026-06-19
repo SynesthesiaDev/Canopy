@@ -5,11 +5,9 @@ using System.Collections.Concurrent;
 using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using Canopy.Graphics;
 using Canopy.Rendering.Shaders;
 using Serilog;
 using Silk.NET.OpenGL;
-using Synesthesia.Utils.Extensions;
 using Shader = Canopy.Rendering.Shaders.Shader;
 using Texture = Canopy.Rendering.Textures.Texture;
 
@@ -17,18 +15,20 @@ namespace Canopy.Rendering;
 
 public class OpenGLRenderer : IDisposable
 {
-    private const ClearFlags default_clear_flags = ClearFlags.ColorBuffer | ClearFlags.DepthBuffer | ClearFlags.StencilBuffer;
-
     private const string shader_uniform_texture = "u_texture";
 
     // Cache so we don't query with string every frame. That's expensive on gc allocations!!
     private int textureShaderLocation;
 
+    private uint vao, vbo, ebo;
+    private int projectionUniformLocation;
+    private int colorUniformLocation;
+    private int alphaUniformLocation;
+    private int useTextureUniformLocation;
+
     private bool openGlInitialized;
 
     public Shader DefaultShader { get; private set; } = null!;
-
-    public VertexBatch<Vertex2D> VertexBatch2D { get; private set; } = null!;
 
     public required IWindowSurface Surface { get; init; }
 
@@ -43,13 +43,10 @@ public class OpenGLRenderer : IDisposable
         private set;
     } = null!;
 
-    public ClearFlags ClearFlags = default_clear_flags;
-
-    public bool CanDraw => BackBufferWidth > 0 && BackBufferHeight > 0;
     public int BackBufferWidth { get; private set; }
     public int BackBufferHeight { get; private set; }
     public Texture? CurrentTexture { get; private set; }
-    public Shader CurrentShader { get; private set; } = null!;
+    public Shader? CurrentShader { get; private set; } = null!;
 
     public static readonly ConcurrentQueue<Texture> TEXTURE_UPLOAD_QUEUE = new ConcurrentQueue<Texture>();
 
@@ -73,7 +70,9 @@ public class OpenGLRenderer : IDisposable
         openGlInitialized = true;
         Resize(BackBufferWidth, BackBufferHeight);
 
-        VertexBatch2D = new VertexBatch<Vertex2D>(OpenGL);
+        initQuadGeometry();
+        compileDefaultShaders();
+        updateProjection();
 
         var version = OpenGL.GetStringS(GLEnum.Version);
         var shadingLanguageVersion = OpenGL.GetStringS(GLEnum.ShadingLanguageVersion);
@@ -88,86 +87,84 @@ public class OpenGLRenderer : IDisposable
         Log.Debug($"- GLSL:      {shadingLanguageVersion}");
     }
 
-    public void DrawQuad(DrawMatrix drawMatrix, Vector2 position, Vector2 size, uint packedColor, float alpha, float cornerRadius, Texture? texture, RectangleF? textureCoord)
+    private void initQuadGeometry()
+    {
+        unsafe
+        {
+            uint[] indices = [0u, 1u, 2u, 0u, 2u, 3u];
+
+            vao = OpenGL.GenVertexArray();
+            vbo = OpenGL.GenBuffer();
+            ebo = OpenGL.GenBuffer();
+
+            OpenGL.BindVertexArray(vao);
+
+            OpenGL.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
+            OpenGL.BufferData(BufferTargetARB.ArrayBuffer, 64, null, BufferUsageARB.DynamicDraw);
+
+            OpenGL.BindBuffer(BufferTargetARB.ElementArrayBuffer, ebo);
+            OpenGL.BufferData(BufferTargetARB.ElementArrayBuffer, indices, BufferUsageARB.StaticDraw);
+
+            const uint stride = 4 * sizeof(float);
+
+            OpenGL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, stride, 0);
+            OpenGL.EnableVertexAttribArray(0);
+
+            OpenGL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, stride, 2 * sizeof(float));
+            OpenGL.EnableVertexAttribArray(1);
+
+            OpenGL.BindVertexArray(0);
+        }
+    }
+
+    // Still need position and size because if you have multiple monitors, the window will span across ALL of them, so
+    // you need to draw multiple wallpapers at different positions that match the monitors
+    public void DrawQuad(Vector2 position, Vector2 size, uint packedColor, float alpha, float cornerRadius, Texture? texture, RectangleF? textureCoord)
     {
         EnsureInitialized();
         if (texture is { IsUploaded: false }) return;
+        if (texture != CurrentTexture) BindTexture(texture);
 
-        if (texture != CurrentTexture)
+        var tex = textureCoord ?? new RectangleF(0, 0, 1, 1);
+        float x = position.X, y = position.Y, w = size.X, h = size.Y;
+
+        // Interleaved: x, y, u, v per vertex
+        ReadOnlySpan<float> vertices =
+        [
+            x, y, tex.Left, tex.Top,
+            x, y + h, tex.Left, tex.Bottom,
+            x + w, y + h, tex.Right, tex.Bottom,
+            x + w, y, tex.Right, tex.Top,
+        ];
+
+        OpenGL.BindVertexArray(vao);
+        OpenGL.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
+        OpenGL.BufferSubData(BufferTargetARB.ArrayBuffer, 0, vertices);
+
+        CurrentShader?.SetVector4(colorUniformLocation, new Vector4(
+            (packedColor & 0xFF) / 255f,
+            (packedColor >> 8 & 0xFF) / 255f,
+            (packedColor >> 16 & 0xFF) / 255f,
+            (packedColor >> 24 & 0xFF) / 255f));
+        CurrentShader?.SetFloat(alphaUniformLocation, alpha);
+        CurrentShader?.SetBool(useTextureUniformLocation, texture != null);
+
+        unsafe
         {
-            BindTexture(texture);
+            OpenGL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, null);
         }
 
-        var v0 = position;
-        var v1 = position with { Y = position.Y + size.Y };
-        var v2 = position + size;
-        var v3 = position with { X = position.X + size.X };
-
-        v0 = Vector2.Transform(v0, drawMatrix.Matrix);
-        v1 = Vector2.Transform(v1, drawMatrix.Matrix);
-        v2 = Vector2.Transform(v2, drawMatrix.Matrix);
-        v3 = Vector2.Transform(v3, drawMatrix.Matrix);
-
-        var tex = textureCoord ?? new Rectangle(0, 0, 1, 1);
-
-        VertexBatch2D.PushVertex(new Vertex2D(
-            position: v0,
-            size: size,
-            texCoord: new Vector2(tex.Left, tex.Top),
-            color: packedColor,
-            alpha: alpha,
-            radius: cornerRadius,
-            localUv: new Vector2(0, 0)
-        ));
-
-        VertexBatch2D.PushVertex(new Vertex2D(
-            position: v1,
-            size: size,
-            texCoord: new Vector2(tex.Left, tex.Bottom),
-            color: packedColor,
-            alpha: alpha,
-            radius: cornerRadius,
-            localUv: new Vector2(0, 1)
-        ));
-
-        VertexBatch2D.PushVertex(new Vertex2D(
-            position: v2,
-            size: size,
-            texCoord: new Vector2(tex.Right, tex.Bottom),
-            color: packedColor,
-            alpha: alpha,
-            radius: cornerRadius,
-            localUv: new Vector2(1, 1)
-        ));
-
-        VertexBatch2D.PushVertex(new Vertex2D(
-            position: v3,
-            size: size,
-            texCoord: new Vector2(tex.Right, tex.Top),
-            color: packedColor,
-            alpha: alpha,
-            radius: cornerRadius,
-            localUv: new Vector2(1, 0)
-        ));
-
-        // old
-        // Matrix4x4 modelMatrix = Matrix4x4.CreateScale(size.X, size.Y, 1.0f) * Matrix4x4.CreateTranslation(position.X, position.Y, 0.0f);
-        // Matrix4x4 finalTransform = modelMatrix * Matrix * projectionMatrix;
-        //
-        // CurrentShader.SetMatrix4(transformShaderLocation, finalTransform);
-        // CurrentShader.SetFloat(alphaShaderLocation, alpha);
-        // CurrentShader.SetBool(useTextureShaderLocation, texture != null);
+        OpenGL.BindVertexArray(0);
     }
 
     public void BindTexture(Texture? texture)
     {
         if (CurrentTexture == texture) return;
-        VertexBatch2D.Flush();
 
         CurrentTexture = texture;
         if (texture != null && texture.Bind(OpenGL))
         {
-            CurrentShader.SetInt(textureShaderLocation, 0);
+            CurrentShader?.SetInt(textureShaderLocation, 0);
         }
         else
         {
@@ -177,6 +174,9 @@ public class OpenGLRenderer : IDisposable
 
     public void Resize(int width, int height)
     {
+        BackBufferWidth = width;
+        BackBufferHeight = height;
+
         Log.Verbose("(OpenGL Renderer) Viewport resize to {width}x{height}", width, height);
         EnsureInitialized();
         pushViewport();
@@ -187,8 +187,6 @@ public class OpenGLRenderer : IDisposable
         // ThreadSafety.AssertRunningOnRenderThread();
 
         if (CurrentShader == shader) return;
-
-        VertexBatch2D.Flush();
 
         CurrentShader = shader;
         shader.Use();
@@ -203,16 +201,14 @@ public class OpenGLRenderer : IDisposable
     public void BeginDrawing()
     {
         EnsureInitialized();
-        ClearBufferMask mask = ClearBufferMask.None;
 
-        if (ClearFlags.HasFlagFast(ClearFlags.ColorBuffer))
-            mask |= ClearBufferMask.ColorBufferBit;
-        if (ClearFlags.HasFlagFast(ClearFlags.DepthBuffer))
-            mask |= ClearBufferMask.DepthBufferBit;
-        if (ClearFlags.HasFlagFast(ClearFlags.StencilBuffer))
-            mask |= ClearBufferMask.StencilBufferBit;
+#if DEBUG
+        OpenGL.ClearColor(1f, 0f, 1f, 1f);
+#else
+        OpenGL.ClearColor(0f, 0f, 0f, 1f);
+#endif
 
-        if (mask != ClearBufferMask.None) OpenGL.Clear(mask);
+        OpenGL.Clear(ClearBufferMask.ColorBufferBit);
 
         while (!TEXTURE_UPLOAD_QUEUE.IsEmpty)
         {
@@ -226,24 +222,32 @@ public class OpenGLRenderer : IDisposable
     public void EndDrawing()
     {
         EnsureInitialized();
-        VertexBatch2D.Flush();
 
         Surface.SwapBuffers();
         BindTexture(null);
-
-        ClearFlags = default_clear_flags;
     }
 
     private void pushViewport()
     {
-        var size = Surface.GetScreenSize();
-        BackBufferWidth = (int)size.X;
-        BackBufferHeight = (int)size.Y;
-
         OpenGL.Viewport(0, 0, (uint)BackBufferWidth, (uint)BackBufferHeight);
+        if(CurrentShader != null) updateProjection();
     }
 
-    public void CompileDefaultShaders()
+    private void updateProjection()
+    {
+        var proj = Matrix4x4.CreateOrthographicOffCenter(
+            left: 0,
+            right: BackBufferWidth,
+            bottom: BackBufferHeight,
+            top: 0,
+            zNearPlane: -1,
+            zFarPlane: 1
+        );
+
+        CurrentShader.SetMatrix4(projectionUniformLocation, proj);
+    }
+
+    private void compileDefaultShaders()
     {
         DefaultShader = new Shader(OpenGL, ShaderSources.DEFAULT_VERTEX, ShaderSources.DEFAULT_FRAGMENT);
         BindShader(DefaultShader);
@@ -251,8 +255,13 @@ public class OpenGLRenderer : IDisposable
 
     private void cacheShaderUniformLocations()
     {
-        textureShaderLocation = CurrentShader.GetUniformLocation(shader_uniform_texture);
+        textureShaderLocation = CurrentShader.GetUniformLocation("u_texture");
+        projectionUniformLocation = CurrentShader.GetUniformLocation("u_projection");
+        colorUniformLocation = CurrentShader.GetUniformLocation("u_color");
+        alphaUniformLocation = CurrentShader.GetUniformLocation("u_alpha");
+        useTextureUniformLocation = CurrentShader.GetUniformLocation("u_use_texture");
     }
+
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void EnsureInitialized()
@@ -265,7 +274,6 @@ public class OpenGLRenderer : IDisposable
         Log.Verbose("Disposing OpenGLRenderer");
         openGlInitialized = false;
 
-        VertexBatch2D.Dispose();
         OpenGL.Dispose();
     }
 }
