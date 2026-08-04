@@ -15,7 +15,7 @@ internal class Program
 
         Log.Logger = log;
 
-        var canopy = new CanopyPlatformWindows();
+        var canopy = new Canopy(new CanopyPlatformWindows());
         canopy.Initialize();
     }
 }

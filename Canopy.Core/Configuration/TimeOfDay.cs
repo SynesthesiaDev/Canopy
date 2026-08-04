@@ -1,11 +1,14 @@
 ﻿// Copyright (c) 2026 SynesthesiaDev <synesthesiadev@proton.me>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using Canopy.Rendering;
+namespace Canopy.Configuration;
 
-namespace Canopy.Graphics;
-
-public interface IDrawable : IDisposable
+public enum TimeOfDay
 {
-    void Draw(OpenGLRenderer gl);
+    Sunrise,
+    Morning,
+    Afternoon,
+    Sunset,
+    Night,
+    DeepNight,
 }
