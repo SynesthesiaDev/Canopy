@@ -12,7 +12,7 @@ public record WeatherConfig(
     WeatherConfig.ManualCoordinates? Coordinates
 )
 {
-    public static readonly WeatherConfig DEFAULT = new WeatherConfig(true, 60_000, OfflineMode.UseLastKnownState, null);
+    public static readonly WeatherConfig DEFAULT = new WeatherConfig(true, 60_000, OfflineMode.UseLastKnownState, new ManualCoordinates(Latitude: 50.087555, Longitude: 14.421194));
 
     public static readonly StructCodec<WeatherConfig> CODEC = StructCodec.For<WeatherConfig>()
         .Field("UseAutoLocation", Codecs.BOOLEAN, w => w.UseAutoLocation)

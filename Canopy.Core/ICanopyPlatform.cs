@@ -5,5 +5,21 @@ namespace Canopy;
 public interface ICanopyPlatform
 {
     RuntimeInfo.Platform Platform { get; }
-    void SetDesktop(byte[] image);
+    void SetDesktop(string path);
+    void SetTheme(Theme theme);
+    void InitializeTray(Canopy canopy);
+    void ShowNotification(string title, string message, NotificationLevel level = NotificationLevel.Info);
+
+    enum Theme
+    {
+        Light,
+        Dark
+    }
+
+    enum NotificationLevel
+    {
+        Info,
+        Warning,
+        Error
+    }
 }

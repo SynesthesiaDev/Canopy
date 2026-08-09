@@ -6,20 +6,18 @@
 ![Target .NET](https://img.shields.io/badge/.NET-10.0-512bd4?style=for-the-badge&logo=dotnet)
 ![License](https://img.shields.io/badge/License-MIT-black?style=for-the-badge)
 
-**A lightweight, highly customizable dynamic and animated wallpaper engine for Windows.**
-
-*(Maybe on Linux and Mac too in the future)*
+A lightweight wallpaper engine that automatically switches your desktop based on real-world conditions like time of day, weather, season, and holidays.
 
 ---
 
 ### ⚡ Features
 
-- **☀️ Dynamic Environments** 
-  - Automatically switch wallpapers based on real-time conditions like time of day, current weather, or any custom conditions
-- **🎨 Custom Shader Support:**
-  - Attach and render custom glsl shaders directly onto your desktop
-- **🌙 Lua Scripting:** 
-  - Highly extensible and easily configurable. Write simple or complex Luau scripts to automate transitions and logic
+- **☀️ Condition-Based Wallpapers** 
+  - Automatically switch wallpapers based on time of day, current weather, season, and holidays
+- **🔌 WebSocket Support:** 
+  - Canopy can broadcast the current wallpaper along with info like it's accent color over a local WebSocket, so other apps (e.g. zebar) can theme themselves to match automatically
+- **🖥️ System Theme Sync**
+  - Optionally switch your system's light/dark theme alongside the wallpaper based on time of day
 - 🚫 **No AI Slop**
     - Purely written by passionete single-brain-celled autistic individual
 
@@ -35,6 +33,19 @@
 
 ### 🛠️ Configuration
 
-Canopy is configured via [Luau](https://luau.org/), making configuration incredibly flexible
+Canopy is configured via a `config.synx` file, written in [Synx](https://github.com/SynesthesiaDev/Synx). A default config with a starter wallpaper set is generated automatically on first launch:
 
-//todo example
+```synx
+Wallpapers = [
+    {
+        Path = "./default/beach.jpg"
+        Time = ["Afternoon"]
+        Weather = ["Clear"]
+        Season = ["Summer"]
+        Holiday = null
+        Accent = "#207ad9"
+    }
+
+```
+
+See the [full config schema](https://github.com/SynesthesiaDev/Canopy/blob/main/schema.md) for every available option.

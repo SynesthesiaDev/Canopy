@@ -10,53 +10,49 @@ namespace Canopy.Configuration;
 public record Config(
     // ReSharper disable once InconsistentNaming
     string _schema,
-    bool AutoStartOnStartup,
-    bool UseLegacyWindowsApi,
-    bool UpdateLockScreen,
-    bool ApplyToAllMacOsSpaces,
-    int RefreshPeriod,
-    Wallpaper.FitMode FitMode,
+    GeneralConfig General,
+    SystemConfig System,
     UpdaterConfig Updater,
     WeatherConfig Weather,
+    WebsocketConfig Websocket,
     List<Wallpaper> Wallpapers
 )
 {
     public static readonly Config DEFAULT = new Config
     (
         _schema: "https://github.com/SynesthesiaDev/Canopy/blob/main/schema.md",
-        AutoStartOnStartup: true,
-        UseLegacyWindowsApi: false,
-        UpdateLockScreen: false,
-        ApplyToAllMacOsSpaces: true,
-        RefreshPeriod: 60_000,
-        FitMode: Wallpaper.FitMode.Fit,
+        General: GeneralConfig.DEFAULT,
+        System: SystemConfig.DEFAULT,
         Updater: UpdaterConfig.DEFAULT,
         Weather: WeatherConfig.DEFAULT,
+        Websocket: WebsocketConfig.DEFAULT,
         Wallpapers: Wallpaper.DEFAULT_WALLPAPERS
     );
 
     public static readonly StructCodec<Config> CODEC = StructCodec.For<Config>()
         .Field("_schema", Codecs.STRING, c => c._schema)
-        .Field("AutoStartOnStartup", Codecs.BOOLEAN, c => c.AutoStartOnStartup)
-        .Field("UseLegacyWindowsApi", Codecs.BOOLEAN, c => c.UseLegacyWindowsApi)
-        .Field("UpdateLockScreen", Codecs.BOOLEAN, c => c.UpdateLockScreen)
-        .Field("ApplyToAllMacOsSpaces", Codecs.BOOLEAN, c => c.ApplyToAllMacOsSpaces)
-        .Field("RefreshPeriod", Codecs.INT, c => c.RefreshPeriod)
-        .Field("FitMode", Codecs.Enum<Wallpaper.FitMode>(), c => c.FitMode)
+        .Field("General", GeneralConfig.CODEC, c => c.General)
+        .Field("System", SystemConfig.CODEC, c => c.System)
         .Field("Updater", UpdaterConfig.CODEC, c => c.Updater)
         .Field("Weather", WeatherConfig.CODEC, c => c.Weather)
+        .Field("Websocket", WebsocketConfig.CODEC, c => c.Websocket)
         .Field("Wallpapers", Wallpaper.CODEC.List(), c => c.Wallpapers)
-        .Build((b, b1, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) => new Config(b, b1, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10));
+        .Build((s, config, arg3, arg4, arg5, arg6, arg7) => new Config(s, config, arg3, arg4, arg5, arg6, arg7));
 
     public static readonly VersionedStructCodec<Config> VERSIONED_CODEC = new VersionedStructCodec<Config>
     {
-        CurrentSchemaVersion = 1,
+        CurrentSchemaVersion = 2,
         InnerCodec = CODEC,
         SchemaMigrationRegistry = SchemaMigrationRegistry.Builder().For<ISynxElement>(builder =>
         {
-            builder.Add(1, (transcoder, input, output) =>
+            builder.Add(1, (transcoder, _, output) =>
             {
                 output.Put(transcoder.EncodeString("_schema"), transcoder.EncodeString(DEFAULT._schema));
+                Canopy.ConfigMigrated = true;
+            });
+            builder.Add(2, (transcoder, _, output) =>
+            {
+                output.Put(transcoder.EncodeString("ChangeSystemThemesDependingOnTime"), transcoder.EncodeBool(DEFAULT.System.ChangeSystemThemesDependingOnTime));
                 Canopy.ConfigMigrated = true;
             });
         })
