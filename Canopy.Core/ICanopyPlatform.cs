@@ -1,18 +1,25 @@
-﻿using Canopy.Graphics;
-using Synesthesia.Utils;
+﻿using Synesthesia.Utils;
 
 namespace Canopy;
 
 public interface ICanopyPlatform
 {
     RuntimeInfo.Platform Platform { get; }
+    void SetDesktop(string path);
+    void SetTheme(Theme theme);
+    void InitializeTray(Canopy canopy);
+    void ShowNotification(string title, string message, NotificationLevel level = NotificationLevel.Info);
 
-    void Initialize();
+    enum Theme
+    {
+        Light,
+        Dark
+    }
 
-    void InjectIntoDesktop(IntPtr chibiWindowHandle);
-
-    void HideWindow();
-    void ShowWindow();
-
-    void PushWallpaper(Wallpaper wallpaper);
+    enum NotificationLevel
+    {
+        Info,
+        Warning,
+        Error
+    }
 }

@@ -6,6 +6,7 @@ namespace Canopy.Windows;
 
 internal class Program
 {
+    [STAThread]
     private static void Main(string[] args)
     {
         using var log = new LoggerConfiguration()
@@ -15,7 +16,9 @@ internal class Program
 
         Log.Logger = log;
 
-        var canopy = new CanopyPlatformWindows();
+        var canopy = new Canopy(new CanopyPlatformWindows());
         canopy.Initialize();
+
+
     }
 }
