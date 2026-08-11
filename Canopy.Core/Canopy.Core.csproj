@@ -19,7 +19,7 @@
       <PackageReference Include="SolarCalculator" Version="3.6.1" />
       <PackageReference Include="StbImageSharp" Version="2.30.15" />
       <PackageReference Include="SynesthesiaDev.Codon.Codec" Version="2026.730.0" />
-      <PackageReference Include="SynesthesiaDev.Synx.Codon" Version="2026.804.0" />
+      <PackageReference Include="SynesthesiaDev.Synx.Codon" Version="2026.811.0" />
       <PackageReference Include="SynesthesiaUtils" Version="2026.804.0" />
     </ItemGroup>
 

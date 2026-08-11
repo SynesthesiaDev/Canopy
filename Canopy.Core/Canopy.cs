@@ -165,14 +165,12 @@ public class Canopy(ICanopyPlatform platform)
             }
         }
 
-
         var eligible = CurrentConfig.Wallpapers.Filter(w =>
             containsOrEmpty(w.Season, season) &&
             containsOrEmpty(w.Time, time) &&
             containsOrEmpty(w.Weather, weather) &&
             w.Holiday.IsMissing
         );
-
 
         if (eligible.IsEmpty()) return null;
 
