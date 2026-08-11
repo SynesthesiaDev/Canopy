@@ -23,7 +23,7 @@ public class GeopositionProvider : IProvider<GeopositionProvider.GeoPosition>
         if (cached != null) return cached;
 
         var weatherConfig = Canopy.CurrentConfig.Weather;
-        if (weatherConfig.UseAutoLocation)
+        if (!weatherConfig.UseAutoLocation)
         {
             if (weatherConfig.Coordinates == null)
                 throw new InvalidOperationException("Cannot have 'UseAutoLocation' disabled and have no coordinates specified");
@@ -44,7 +44,7 @@ public class GeopositionProvider : IProvider<GeopositionProvider.GeoPosition>
     {
         public static readonly StructCodec<GeoPosition> CODEC = StructCodec.For<GeoPosition>()
             .Field("lat", Codecs.DOUBLE, r => r.Lat)
-            .Field("Lon", Codecs.DOUBLE, r => r.Lon)
+            .Field("lon", Codecs.DOUBLE, r => r.Lon)
             .Build((lat, lon) => new GeoPosition(lat, lon));
     }
 }
