@@ -19,10 +19,6 @@ Below are all schemas related to the config file.
 
 ## General
 
-- `AutoStartOnStartup`
-  - Automatically start Canopy when system starts up
-  - Type: `Boolean`
-  
 - `RefreshPeriod`
   - Interval at which Canopy will check current conditions and potentially apply new wallpaper _(Keep in mind, the API limit for weather api is 10,000 requests a day!)_
   - Type: `Int`
@@ -147,27 +143,27 @@ Following are the schemas for messages Canopy sends over the websocket as JSON:
 # Default Config File
 
 ```hocon
-_schemaVersion = 1
+_schemaVersion = 3
 _schema = "https://github.com/SynesthesiaDev/Canopy/blob/main/schema.md"
 General = {
-    AutoStartOnStartup = true
     RefreshPeriod = 60000
     FitMode = "Fill"
+    UseSolarNoonAsMidday = true
 }
 System = {
     UseLegacyWindowsApi = false
     ApplyToAllMacOsSpaces = true
     UpdateLockScreen = false
     DontUpdateWhenBatteryLow = true
+    ChangeSystemThemesDependingOnTime = false
 }
 Updater = {
     ReleaseStream = "Release"
     AutoUpdate = true
-    Source = "https://github.com/SynesthesiaDev/Canopy/releases"
+    Source = "https://github.com/SynesthesiaDev/Canopy"
 }
 Weather = {
     UseAutoLocation = true
-    RefreshInterval = 60000
     OfflineFallback = "UseLastKnownState"
     Coordinates = {
         Longitude = 14.421194
@@ -308,5 +304,4 @@ Wallpapers = [
         Accent = "#1b2836"
     }
 ]
-
 ```

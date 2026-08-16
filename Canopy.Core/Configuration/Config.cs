@@ -3,6 +3,9 @@
 
 using Codon.Codec;
 using Codon.Codec.Versioned;
+using Synesthesia.Utils.Extensions;
+using SynesthesiaDev.Synx;
+using SynesthesiaDev.Synx.Codon;
 using SynesthesiaDev.Synx.Types;
 
 namespace Canopy.Configuration;
@@ -41,7 +44,7 @@ public record Config(
 
     public static readonly VersionedStructCodec<Config> VERSIONED_CODEC = new VersionedStructCodec<Config>
     {
-        CurrentSchemaVersion = 2,
+        CurrentSchemaVersion = 3,
         InnerCodec = CODEC,
         SchemaMigrationRegistry = SchemaMigrationRegistry.Builder().For<ISynxElement>(builder =>
         {
@@ -50,12 +53,24 @@ public record Config(
                 output.Put(transcoder.EncodeString("_schema"), transcoder.EncodeString(DEFAULT._schema));
                 Canopy.ConfigMigrated = true;
             });
+
             builder.Add(2, (transcoder, _, output) =>
             {
                 output.Put(transcoder.EncodeString("ChangeSystemThemesDependingOnTime"), transcoder.EncodeBool(DEFAULT.System.ChangeSystemThemesDependingOnTime));
                 Canopy.ConfigMigrated = true;
             });
+
+            builder.Add(3, (transcoder, input, output) =>
+            {
+                var updaterConfig = UpdaterConfig.CODEC.Decode(SynxTranscoder.INSTANCE, input.GetValue("Updater").Object());
+                if (updaterConfig.Source.EndsWith("releases/") || updaterConfig.Source.EndsWith("releases"))
+                {
+                    updaterConfig = updaterConfig with { Source = updaterConfig.Source.RemoveSuffix("releases/".RemoveSuffix("releases")) };
+                    output.Put("Updater", UpdaterConfig.CODEC.Encode(SynxTranscoder.INSTANCE, updaterConfig));
+                }
+
+                Canopy.ConfigMigrated = true;
+            });
         })
     };
-
 }

@@ -4,6 +4,7 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using Canopy.Windows.Extensions;
 using H.NotifyIcon.Core;
 using Microsoft.Win32;
 using Serilog;
@@ -52,13 +53,14 @@ public class CanopyPlatformWindows : ICanopyPlatform
         try
         {
             wallpaper.SetWallpaper(null, path);
-            wallpaper.SetPosition(Shell32.DESKTOP_WALLPAPER_POSITION.DWPOS_FILL);
+            wallpaper.SetPosition(Canopy.CurrentConfig.General.FitMode.ToShellPos());
         }
         finally
         {
             Marshal.ReleaseComObject(wallpaper);
         }
     }
+
 
     public void SetTheme(ICanopyPlatform.Theme theme)
     {

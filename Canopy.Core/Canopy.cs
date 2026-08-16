@@ -55,7 +55,10 @@ public class Canopy(ICanopyPlatform platform)
         {
             using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(CurrentConfig.General.RefreshPeriod));
             while (await timer.WaitForNextTickAsync())
+            {
                 Refresh();
+                await Updater.CheckForUpdates(this);
+            }
         });
 
         Platform.InitializeTray(this);
