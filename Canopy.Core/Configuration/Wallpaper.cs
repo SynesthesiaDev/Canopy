@@ -194,13 +194,3 @@ public record Wallpaper(
 
     public override string ToString() => $"Wallpaper(Path={Path}, Time={Time.ToListString()}, Weather={Weather.ToListString()}, Season={Season.ToListString()}, Holiday={Holiday}, Accent={Accent})";
 }
-
-
-// public record Wallpaper(
-//     string Path,
-//     List<TimeOfDay> Time,
-//     List<WeatherType> Weather,
-//     List<SeasonType> Season,
-//     Holiday? Holiday = null,
-//     string? Accent = null
-// )

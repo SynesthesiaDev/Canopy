@@ -1,1 +1,6 @@
-﻿- Initial Velopack release setup
+﻿- Removed `AutoStartOnStartup` from config
+- Removed `RefreshPeriod` from the Weather section
+- Made `FitMode` work
+- Bundle in default wallpapers to work with the default config
+- Bumped config schema to 3
+- Fix windows notifications not working
