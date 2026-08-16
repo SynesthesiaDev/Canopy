@@ -14,10 +14,10 @@ public class Updater
     {
         try
         {
-            Log.Information("Checking for updates..");
             var config = Canopy.CurrentConfig.Updater;
             if (!config.AutoUpdate) return;
 
+            Log.Information("Checking for updates..");
             var manager = new UpdateManager(new GithubSource(Canopy.CurrentConfig.Updater.Source, null, false));
             var newVersion = await manager.CheckForUpdatesAsync();
 

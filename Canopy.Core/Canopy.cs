@@ -47,9 +47,9 @@ public class Canopy(ICanopyPlatform platform)
     {
         Log.Verbose("Initializing Canopy..");
 
-        Task.Run(async () => await Updater.CheckForUpdates(this));
-
         LoadRefreshable();
+
+        Task.Run(async () => await Updater.CheckForUpdates(this));
 
         Task.Run(async () =>
         {
