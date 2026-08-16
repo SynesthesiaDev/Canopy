@@ -8,7 +8,7 @@ namespace Canopy.Configuration;
 public record UpdaterConfig(UpdaterConfig.Release ReleaseStream, bool AutoUpdate, string Source)
 {
 
-    public static readonly UpdaterConfig DEFAULT = new UpdaterConfig(Release.Release, true, "https://github.com/SynesthesiaDev/Canopy/releases");
+    public static readonly UpdaterConfig DEFAULT = new UpdaterConfig(Release.Release, true, "https://github.com/SynesthesiaDev/Canopy");
 
     public static readonly StructCodec<UpdaterConfig> CODEC = StructCodec.For<UpdaterConfig>()
         .Field("ReleaseStream", Codecs.Enum<Release>(), u => u.ReleaseStream)
