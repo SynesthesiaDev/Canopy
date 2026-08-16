@@ -64,7 +64,7 @@ jobs:
 
             - name: Download Previous Release
               continue-on-error: true
-              run: vpk download github --repoUrl https://github.com/${{ github.repository }}
+              run: vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
 
             - name: Pack Release
               run: >
@@ -85,7 +85,7 @@ jobs:
                   --releaseName "Canopy ${{ steps.versioning.outputs.VERSION }}"
                   --tag v${{ steps.versioning.outputs.VERSION }}
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  VPK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Set Release Notes Body
               run: gh release edit v${{ steps.versioning.outputs.VERSION }} --notes-file CHANGELOG.md
