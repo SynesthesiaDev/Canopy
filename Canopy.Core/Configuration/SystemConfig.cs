@@ -8,7 +8,6 @@ namespace Canopy.Configuration;
 public record SystemConfig(
     bool UseLegacyWindowsApi,
     bool ApplyToAllMacOsSpaces,
-    bool UpdateLockScreen,
     bool DontUpdateWhenBatteryLow,
     bool ChangeSystemThemesDependingOnTime
 )
@@ -16,7 +15,6 @@ public record SystemConfig(
     public static readonly SystemConfig DEFAULT = new SystemConfig(
         UseLegacyWindowsApi: false,
         ApplyToAllMacOsSpaces: true,
-        UpdateLockScreen: false,
         DontUpdateWhenBatteryLow: true,
         ChangeSystemThemesDependingOnTime: false
     );
@@ -24,8 +22,7 @@ public record SystemConfig(
     public static readonly StructCodec<SystemConfig> CODEC = StructCodec.For<SystemConfig>()
         .Field("UseLegacyWindowsApi", Codecs.BOOLEAN, s => s.UseLegacyWindowsApi)
         .Field("ApplyToAllMacOsSpaces", Codecs.BOOLEAN, s => s.ApplyToAllMacOsSpaces)
-        .Field("UpdateLockScreen", Codecs.BOOLEAN, s => s.UpdateLockScreen)
         .Field("DontUpdateWhenBatteryLow", Codecs.BOOLEAN, s => s.DontUpdateWhenBatteryLow)
         .Field("ChangeSystemThemesDependingOnTime", Codecs.BOOLEAN, s => s.ChangeSystemThemesDependingOnTime)
-        .Build((b, b1, arg3, arg4, arg5) => new SystemConfig(b, b1, arg3, arg4, arg5));
+        .Build((b, b1, arg4, arg5) => new SystemConfig(b, b1, arg4, arg5));
 }

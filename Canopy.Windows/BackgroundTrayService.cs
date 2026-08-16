@@ -46,6 +46,7 @@ public class BackgroundTrayService(Canopy canopy)
             menu.Items.Add(new PopupMenuItem("Reload Config", (_, _) => canopy.LoadRefreshable()));
             menu.Items.Add(new PopupMenuItem("Dark Theme", (_, _) => canopy.Platform.SetTheme(ICanopyPlatform.Theme.Dark)));
             menu.Items.Add(new PopupMenuItem("Light Theme", (_, _) => canopy.Platform.SetTheme(ICanopyPlatform.Theme.Light)));
+            menu.Items.Add(new PopupMenuItem("Check for Updates", (_, _) => _ = Updater.CheckForUpdates(canopy)));
             menu.Items.Add(new PopupMenuItem("Exit", (_, _) => Environment.Exit(0)));
             trayIcon.ContextMenu = menu;
 
