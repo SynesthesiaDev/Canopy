@@ -13,14 +13,14 @@ namespace Canopy.Windows;
 
 public class BackgroundTrayService(Canopy canopy)
 {
-    private Thread? trayThread;
+    public Thread? TrayThread;
     private TrayIconWithContextMenu trayIcon = null!;
     private readonly ConcurrentQueue<Action> queue = new ConcurrentQueue<Action>();
 
     public void Start()
     {
 
-        trayThread = new Thread(() =>
+        TrayThread = new Thread(() =>
         {
             trayIcon = new TrayIconWithContextMenu();
             trayIcon.ToolTip = "🌿 Canopy";
@@ -39,7 +39,7 @@ public class BackgroundTrayService(Canopy canopy)
             }
 
             var menu = new PopupMenu();
-            menu.Items.Add(new PopupMenuItem("Open Config Folder", (_, _) => ShellUtils.OpenFolder(Canopy.CANOPY_FOLDER_PATH)));
+            menu.Items.Add(new PopupMenuItem("Open Config Folder", (_, _) => Utils.OpenFolder(Canopy.CANOPY_FOLDER_PATH)));
             menu.Items.Add(new PopupMenuItem("Reload Config", (_, _) => canopy.LoadRefreshable()));
             // menu.Items.Add(new PopupMenuItem("Test popup", (_, _) => canopy.Platform.ShowNotification("fuccckkk", "my peniiiiiiiiiis", ICanopyPlatform.NotificationLevel.Warning)));
             menu.Items.Add(new PopupMenuItem("Dark Theme", (_, _) => canopy.Platform.SetTheme(ICanopyPlatform.Theme.Dark)));
@@ -61,9 +61,9 @@ public class BackgroundTrayService(Canopy canopy)
             }
         });
 
-        trayThread.SetApartmentState(ApartmentState.STA);
-        trayThread.IsBackground = true;
-        trayThread.Start();
+        TrayThread.SetApartmentState(ApartmentState.STA);
+        TrayThread.IsBackground = true;
+        TrayThread.Start();
     }
 
     public void ShowBalloon(string title, string message, NotificationIcon icon)

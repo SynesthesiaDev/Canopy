@@ -1,0 +1,93 @@
+﻿name: Release
+
+on:
+    push:
+        branches:
+            - main
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup .NET
+              uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: 8.0.x
+
+            - name: Generate CalVer Version
+              id: versioning
+              shell: bash
+              run: |
+                  DATE_PREFIX=$(date +'%Y.%-m%d')
+
+                  git fetch --tags
+                  REVISION=$(git tag -l "v${DATE_PREFIX}.*" | wc -l | xargs)
+
+                  VERSION="${DATE_PREFIX}.${REVISION}"
+                  echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+                  echo "Generated Version: $VERSION"
+
+            - name: Restore dependencies
+              run: dotnet restore
+
+            - name: Build
+              run: dotnet build --no-restore -c Release
+
+            - name: Test
+              run: dotnet test --no-build -c Release --verbosity normal
+
+            - name: Publish Application
+              run: >
+                  dotnet publish Canopy.Windows/Canopy.Windows.csproj
+                  -c Release
+                  -o publish
+                  -r win-x64
+                  --self-contained true
+                  -p:Version=${{ steps.versioning.outputs.VERSION }}
+
+            - name: Create Git Tag
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git tag v${{ steps.versioning.outputs.VERSION }}
+                  git push origin v${{ steps.versioning.outputs.VERSION }}
+
+            - name: Install vpk
+              run: dotnet tool install -g vpk
+
+            - name: Download Previous Release
+              continue-on-error: true
+              run: vpk download github --repoUrl https://github.com/${{ github.repository }}
+
+            - name: Pack Release
+              run: >
+                  vpk pack
+                  -u Canopy
+                  -v ${{ steps.versioning.outputs.VERSION }}
+                  -p publish
+                  -e Canopy.Windows.exe
+                  --packTitle "Canopy"
+                  --shortcuts Desktop,StartMenuRoot,Startup
+                  --releaseNotes CHANGELOG.md
+
+            - name: Upload Release
+              run: >
+                  vpk upload github
+                  --repoUrl https://github.com/${{ github.repository }}
+                  --publish
+                  --releaseName "Canopy ${{ steps.versioning.outputs.VERSION }}"
+                  --tag v${{ steps.versioning.outputs.VERSION }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Set Release Notes Body
+              run: gh release edit v${{ steps.versioning.outputs.VERSION }} --notes-file CHANGELOG.md
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

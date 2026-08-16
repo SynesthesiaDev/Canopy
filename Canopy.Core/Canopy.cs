@@ -49,7 +49,7 @@ public class Canopy(ICanopyPlatform platform)
 
         LoadRefreshable();
 
-        var task = Task.Run(async () =>
+        Task.Run(async () =>
         {
             using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(CurrentConfig.General.RefreshPeriod));
             while (await timer.WaitForNextTickAsync())
@@ -58,7 +58,7 @@ public class Canopy(ICanopyPlatform platform)
 
         Platform.InitializeTray(this);
 
-        Console.ReadLine();
+        Platform.BlockThread();
     }
 
     public void LoadRefreshable()
@@ -82,7 +82,9 @@ public class Canopy(ICanopyPlatform platform)
         Log.Verbose("Loading config..");
         if (!Directory.Exists(CANOPY_FOLDER_PATH))
         {
+            Log.Verbose("Folder doesn't exist, creating and copying default contents");
             Directory.CreateDirectory(CANOPY_FOLDER_PATH);
+            Utils.CopyEmbeddedFolder(GetType().Assembly, "Canopy.Core.Resources", CANOPY_FOLDER_PATH);
         }
 
         if (!File.Exists(CONFIG_FILE_PATH))

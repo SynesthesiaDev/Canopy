@@ -122,6 +122,11 @@ public class CanopyPlatformWindows : ICanopyPlatform
         backgroundTrayService.ShowBalloon(title, message, icon);
     }
 
+    public void BlockThread()
+    {
+        backgroundTrayService.TrayThread?.Join();
+    }
+
     private static byte[] convertToBmp(byte[] sourceImageBytes)
     {
         using var inputStream = new MemoryStream(sourceImageBytes);

@@ -1,0 +1,34 @@
+﻿// Copyright (c) 2026 SynesthesiaDev <synesthesiadev@proton.me>. Licensed under the MIT Licence.
+// See the LICENCE file in the repository root for full licence text.
+
+using Serilog;
+using Velopack;
+using Velopack.Exceptions;
+using Velopack.Sources;
+
+namespace Canopy;
+
+public class Updater
+{
+    public static async Task CheckForUpdates()
+    {
+        try
+        {
+            var config = Canopy.CurrentConfig.Updater;
+            if (!config.AutoUpdate) return;
+
+            var manager = new UpdateManager(new GithubSource(Canopy.CurrentConfig.Updater.Source, null, false));
+            var newVersion = await manager.CheckForUpdatesAsync();
+
+            if (newVersion == null) return;
+
+            await manager.DownloadUpdatesAsync(newVersion);
+            manager.ApplyUpdatesAndRestart(newVersion);
+        }
+        catch (NotInstalledException)
+        {
+            Log.Warning("Skipping update check, app running in dev mode");
+            throw;
+        }
+    }
+}
