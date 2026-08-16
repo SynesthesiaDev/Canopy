@@ -8,6 +8,7 @@ using H.NotifyIcon.Core;
 using Serilog;
 using Vanara.PInvoke;
 using static Vanara.PInvoke.User32;
+using static Vanara.PInvoke.Kernel32;
 
 namespace Canopy.Windows;
 
@@ -16,12 +17,14 @@ public class BackgroundTrayService(Canopy canopy)
     public Thread? TrayThread;
     private TrayIconWithContextMenu trayIcon = null!;
     private readonly ConcurrentQueue<Action> queue = new ConcurrentQueue<Action>();
+    private uint trayThreadId;
 
     public void Start()
     {
 
         TrayThread = new Thread(() =>
         {
+            trayThreadId = GetCurrentThreadId();
             trayIcon = new TrayIconWithContextMenu();
             trayIcon.ToolTip = "🌿 Canopy";
 
@@ -41,7 +44,6 @@ public class BackgroundTrayService(Canopy canopy)
             var menu = new PopupMenu();
             menu.Items.Add(new PopupMenuItem("Open Config Folder", (_, _) => Utils.OpenFolder(Canopy.CANOPY_FOLDER_PATH)));
             menu.Items.Add(new PopupMenuItem("Reload Config", (_, _) => canopy.LoadRefreshable()));
-            // menu.Items.Add(new PopupMenuItem("Test popup", (_, _) => canopy.Platform.ShowNotification("fuccckkk", "my peniiiiiiiiiis", ICanopyPlatform.NotificationLevel.Warning)));
             menu.Items.Add(new PopupMenuItem("Dark Theme", (_, _) => canopy.Platform.SetTheme(ICanopyPlatform.Theme.Dark)));
             menu.Items.Add(new PopupMenuItem("Light Theme", (_, _) => canopy.Platform.SetTheme(ICanopyPlatform.Theme.Light)));
             menu.Items.Add(new PopupMenuItem("Exit", (_, _) => Environment.Exit(0)));
@@ -53,7 +55,6 @@ public class BackgroundTrayService(Canopy canopy)
             {
                 while (queue.TryDequeue(out var task))
                 {
-                    Log.Information("dequeued");
                     task.Invoke();
                 }
                 TranslateMessage(in msg);
@@ -70,12 +71,13 @@ public class BackgroundTrayService(Canopy canopy)
     {
         queue.Enqueue(() =>
         {
-            Log.Warning("{title}, {message}, {icon}", title, message, icon);
             trayIcon.ShowNotification(
                 title: title,
                 message: message,
                 icon: icon
             );
         });
+
+        PostThreadMessage(trayThreadId, (uint)WindowMessage.WM_NULL, IntPtr.Zero, IntPtr.Zero);
     }
 }

@@ -47,6 +47,8 @@ public class Canopy(ICanopyPlatform platform)
     {
         Log.Verbose("Initializing Canopy..");
 
+        Task.Run(async () => await Updater.CheckForUpdates(this));
+
         LoadRefreshable();
 
         Task.Run(async () =>
@@ -141,6 +143,7 @@ public class Canopy(ICanopyPlatform platform)
         var next = PickNextWallpaper(time, weather, season, holiday);
         if (next == null)
         {
+            Platform.ShowNotification("Canopy", $"No wallpaper configuration found for current state ({state})", ICanopyPlatform.NotificationLevel.Warning);
             Log.Error("No wallpapers found for current state ({state})", state);
             return;
         }
@@ -244,6 +247,7 @@ public class Canopy(ICanopyPlatform platform)
 
         if (error != null)
         {
+            Platform.ShowNotification("Canopy", error, ICanopyPlatform.NotificationLevel.Error);
             Log.Error(error);
             Environment.Exit(0);
         }

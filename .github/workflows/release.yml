@@ -76,6 +76,7 @@ jobs:
                   --packTitle "Canopy"
                   --shortcuts Desktop,StartMenuRoot,Startup
                   --releaseNotes CHANGELOG.md
+                  --icon Canopy.Windows/canopy.ico
 
             - name: Upload Release
               run: >

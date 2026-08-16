@@ -10,17 +10,24 @@ namespace Canopy;
 
 public class Updater
 {
-    public static async Task CheckForUpdates()
+    public static async Task CheckForUpdates(Canopy canopy)
     {
         try
         {
+            Log.Information("Checking for updates..");
             var config = Canopy.CurrentConfig.Updater;
             if (!config.AutoUpdate) return;
 
             var manager = new UpdateManager(new GithubSource(Canopy.CurrentConfig.Updater.Source, null, false));
             var newVersion = await manager.CheckForUpdatesAsync();
 
-            if (newVersion == null) return;
+            if (newVersion == null)
+            {
+                Log.Information("No new updates available");
+                return;
+            }
+            Log.Information("New update available, downloading..");
+            canopy.Platform.ShowNotification("Canopy", $"Downloading new update..");
 
             await manager.DownloadUpdatesAsync(newVersion);
             manager.ApplyUpdatesAndRestart(newVersion);
