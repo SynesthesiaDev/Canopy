@@ -37,10 +37,6 @@ Below are all schemas related to the config file.
     - Apply wallpapers to all MacOS spaces
     - Type: `Boolean`
 
-- `UpdateLockScreen`
-    - Update the lock screen with the wallpaper as well
-    - Type: `Boolean`
-
 - `DontUpdateWhenBatteryLow`
     - Don't run new checks when device battery is low 
     - Type: `Boolean`
@@ -153,7 +149,6 @@ General = {
 System = {
     UseLegacyWindowsApi = false
     ApplyToAllMacOsSpaces = true
-    UpdateLockScreen = false
     DontUpdateWhenBatteryLow = true
     ChangeSystemThemesDependingOnTime = false
 }

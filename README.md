@@ -8,9 +8,11 @@
 
 A lightweight wallpaper engine that automatically switches your desktop based on real-world conditions like time of day, weather, season, and holidays.
 
+<img width="100%" alt="Canopy Preview" src="https://github.com/user-attachments/assets/217137de-2d8d-40b8-a6b6-1e27b0bec19e"/>
+
 ---
 
-### ⚡ Features
+## ⚡ Features
 
 - **☀️ Condition-Based Wallpapers** 
   - Automatically switch wallpapers based on time of day, current weather, season, and holidays
@@ -23,11 +25,16 @@ A lightweight wallpaper engine that automatically switches your desktop based on
 
 ---
 
-### 🚀 Getting Started
+## 🚀 Getting Started
 
-#### Prerequisites
-- Windows 10 / 11
-- [.NET 10.0 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)
+### Prerequisites
+* **OS:** Windows 10 or 11
+* **Runtime:** [.NET 10.0 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)
+ 
+### Installation & Updates
+- Download the latest installer: [Canopy-win-Setup.exe](https://github.com/SynesthesiaDev/Canopy/releases/latest/download/Canopy-win-Setup.exe)
+- Run the installer and launch Canopy.
+- **Auto-Updates:** Powered by [Velopack](https://github.com/velopack/velopack), Canopy checks for updates on startup automatically *(can be disabled in config)*.
 
 ---
 
@@ -48,4 +55,8 @@ Wallpapers = [
 
 ```
 
-See the [full config schema](https://github.com/SynesthesiaDev/Canopy/blob/main/schema.md) for every available option.
+📖 See the [full config schema](https://github.com/SynesthesiaDev/Canopy/blob/main/schema.md) for every available config option and websocket message format
+
+---
+
+If you like Canopy, consider leaving a ⭐ on the repository!
