@@ -72,7 +72,7 @@ public class Canopy(ICanopyPlatform platform)
         lastState = null;
         GEOPOSITION_PROVIDER.InvalidateCache();
 
-        WebsocketServer?.Stop();
+        WebsocketServer?.Dispose();
         if (CurrentConfig.Websocket.Enabled)
         {
             WebsocketServer = new CanopyWebsocketServer();
@@ -180,27 +180,32 @@ public class Canopy(ICanopyPlatform platform)
             }
         }
 
-        var eligible = CurrentConfig.Wallpapers.Filter(w =>
-            containsOrEmpty(w.Season, season) &&
-            containsOrEmpty(w.Time, time) &&
-            containsOrEmpty(w.Weather, weather) &&
-            w.Holiday.IsMissing
-        );
+        var topMatches = new List<Wallpaper>();
+        int topScore = -1;
 
-        if (eligible.IsEmpty()) return null;
+        foreach (var w in CurrentConfig.Wallpapers)
+        {
+            if (!w.Holiday.IsMissing ||
+                !containsOrEmpty(w.Season, season) ||
+                !containsOrEmpty(w.Time, time) ||
+                !containsOrEmpty(w.Weather, weather)) continue;
 
-        var scored = eligible
-            .Select(w => (Wallpaper: w, Score: scoreWallpaper(w, time, weather, season)))
-            .ToList();
-
-        var topScore = scored.Max(s => s.Score);
-
-        var topMatches = scored.Where(s => s.Score == topScore).Select(s => s.Wallpaper).ToList();
-
+            int score = scoreWallpaper(w, time, weather, season);
+            if (score > topScore)
+            {
+                topScore = score;
+                topMatches.Clear();
+                topMatches.Add(w);
+            }
+            else if (score == topScore)
+            {
+                topMatches.Add(w);
+            }
+        }
         return topMatches.IsEmpty() ? null : topMatches.Random();
     }
 
-    private ICanopyPlatform.Theme getThemeForTimeOfDay(TimeOfDay time) =>
+    private static ICanopyPlatform.Theme getThemeForTimeOfDay(TimeOfDay time) =>
         time switch
         {
             TimeOfDay.Sunset or TimeOfDay.Morning or TimeOfDay.Afternoon => ICanopyPlatform.Theme.Light,
@@ -256,9 +261,6 @@ public class Canopy(ICanopyPlatform platform)
 
     public static string ResolveWallpaperPath(string rawPath)
     {
-        if (Path.IsPathRooted(rawPath))
-            return rawPath;
-
-        return Path.GetFullPath(Path.Combine(CANOPY_FOLDER_PATH, rawPath));
+        return Path.IsPathRooted(rawPath) ? rawPath : Path.GetFullPath(Path.Combine(CANOPY_FOLDER_PATH, rawPath));
     }
 }

@@ -9,7 +9,7 @@ using Synesthesia.Utils.Events;
 
 namespace Canopy.Server;
 
-public class WebsocketServer
+public class WebsocketServer : IDisposable
 {
     private readonly HttpListener listener = new();
     private readonly string path;
@@ -117,26 +117,31 @@ public class WebsocketServer
     public async Task Send(string text)
     {
         WebSocket[] activeSockets;
-        lock (@lock)
-        {
-            activeSockets = sockets.Where(s => s.State == WebSocketState.Open).ToArray();
-        }
-
+        lock (@lock) { activeSockets = sockets.ToArray(); }
         if (activeSockets.Length == 0) return;
 
         var bytes = Encoding.UTF8.GetBytes(text);
-        var sendTasks = activeSockets.Select(socket => Task.Run(async () =>
+        var tasks = new Task[activeSockets.Length];
+        for (int i = 0; i < activeSockets.Length; i++)
         {
-            try
-            {
-                await socket.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
-            }
-            catch (WebSocketException ex)
-            {
-                Log.Warning(ex, "(Websocket) -> Send failed, client likely disconnected");
-            }
-        }));
+            var socket = activeSockets[i];
+            tasks[i] = socket.State == WebSocketState.Open
+                ? sendAsync(socket, bytes)
+                : Task.CompletedTask;
+        }
+        await Task.WhenAll(tasks);
+    }
 
-        await Task.WhenAll(sendTasks);
+    private static async Task sendAsync(WebSocket socket, byte[] bytes)
+    {
+        try { await socket.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None); }
+        catch (WebSocketException ex) { Log.Warning(ex, "(Websocket) -> Send failed, client likely disconnected"); }
+    }
+
+    public void Dispose()
+    {
+        ((IDisposable)listener).Dispose();
+        cts?.Dispose();
+        ClientConnected.Dispose();
     }
 }
