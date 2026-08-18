@@ -49,15 +49,15 @@ public class Canopy(ICanopyPlatform platform)
 
         LoadRefreshable();
 
-        Task.Run(async () => await Updater.CheckForUpdates(this));
+        Task.Run(async () => await Updater.CheckForUpdates(this).ConfigureAwait(false));
 
         Task.Run(async () =>
         {
             using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(CurrentConfig.General.RefreshPeriod));
-            while (await timer.WaitForNextTickAsync())
+            while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
             {
                 Refresh();
-                await Updater.CheckForUpdates(this);
+                await Updater.CheckForUpdates(this).ConfigureAwait(false);
             }
         });
 

@@ -46,7 +46,7 @@ public class WebsocketServer : IDisposable
             HttpListenerContext ctx;
             try
             {
-                ctx = await listener.GetContextAsync();
+                ctx = await listener.GetContextAsync().ConfigureAwait(false);
             }
             catch (HttpListenerException)
             {
@@ -57,7 +57,7 @@ public class WebsocketServer : IDisposable
                 break;
             }
 
-            if (ctx.Request.Url?.AbsolutePath != path || !ctx.Request.IsWebSocketRequest)
+            if (!string.Equals(ctx.Request.Url?.AbsolutePath, path, StringComparison.Ordinal) || !ctx.Request.IsWebSocketRequest)
             {
                 ctx.Response.StatusCode = 400;
                 ctx.Response.Close();
@@ -73,7 +73,7 @@ public class WebsocketServer : IDisposable
         WebSocketContext wsCtx;
         try
         {
-            wsCtx = await ctx.AcceptWebSocketAsync(null);
+            wsCtx = await ctx.AcceptWebSocketAsync(null).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -93,10 +93,10 @@ public class WebsocketServer : IDisposable
         {
             while (socket.State == WebSocketState.Open && !ct.IsCancellationRequested)
             {
-                var result = await socket.ReceiveAsync(buffer, ct);
+                var result = await socket.ReceiveAsync(buffer, ct).ConfigureAwait(false);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, ct);
+                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, ct).ConfigureAwait(false);
                     break;
                 }
             }
@@ -129,12 +129,12 @@ public class WebsocketServer : IDisposable
                 ? sendAsync(socket, bytes)
                 : Task.CompletedTask;
         }
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
     private static async Task sendAsync(WebSocket socket, byte[] bytes)
     {
-        try { await socket.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None); }
+        try { await socket.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None).ConfigureAwait(false); }
         catch (WebSocketException ex) { Log.Warning(ex, "(Websocket) -> Send failed, client likely disconnected"); }
     }
 

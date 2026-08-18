@@ -19,7 +19,7 @@ public class Updater
 
             Log.Information("Checking for updates..");
             var manager = new UpdateManager(new GithubSource(Canopy.CurrentConfig.Updater.Source, null, false));
-            var newVersion = await manager.CheckForUpdatesAsync();
+            var newVersion = await manager.CheckForUpdatesAsync().ConfigureAwait(false);
 
             if (newVersion == null)
             {
@@ -29,7 +29,7 @@ public class Updater
             Log.Information("New update available, downloading..");
             canopy.Platform.ShowNotification("Canopy", $"Downloading new update..");
 
-            await manager.DownloadUpdatesAsync(newVersion);
+            await manager.DownloadUpdatesAsync(newVersion).ConfigureAwait(false);
             manager.ApplyUpdatesAndRestart(newVersion);
         }
         catch (NotInstalledException)
