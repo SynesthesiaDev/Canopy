@@ -1,10 +1,1 @@
-﻿- Removed `UpdateLockScreen` from the System section as it requires the app to be signed and iaintgotmoneyforthat
-- Removed `AutoStartOnStartup` from config
-- Removed `RefreshPeriod` from the Weather section
-- Made `FitMode` work
-- Bundle in default wallpapers to work with the default config
-- Bumped config schema to 3
-- Fix windows notifications not working
-- Fix auto updater race condition causing it to not work
-- Add "Check for Updates" button to system tray icon
-- Add proper icon
+﻿- Various memory and garbage collection optimizations
