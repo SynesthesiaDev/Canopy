@@ -45,19 +45,19 @@ public class Canopy(ICanopyPlatform platform)
 
     public void Initialize()
     {
-        Log.Verbose("Initializing Canopy..");
+        Log.Information("Initializing Canopy..");
 
         LoadRefreshable();
 
-        Task.Run(async () => await Updater.CheckForUpdates(this));
+        Task.Run(async () => await Updater.CheckForUpdates(this).ConfigureAwait(false));
 
         Task.Run(async () =>
         {
             using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(CurrentConfig.General.RefreshPeriod));
-            while (await timer.WaitForNextTickAsync())
+            while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
             {
                 Refresh();
-                await Updater.CheckForUpdates(this);
+                await Updater.CheckForUpdates(this).ConfigureAwait(false);
             }
         });
 
@@ -72,7 +72,7 @@ public class Canopy(ICanopyPlatform platform)
         lastState = null;
         GEOPOSITION_PROVIDER.InvalidateCache();
 
-        WebsocketServer?.Stop();
+        WebsocketServer?.Dispose();
         if (CurrentConfig.Websocket.Enabled)
         {
             WebsocketServer = new CanopyWebsocketServer();
@@ -84,17 +84,16 @@ public class Canopy(ICanopyPlatform platform)
 
     private void loadConfig()
     {
-        Log.Verbose("Loading config..");
         if (!Directory.Exists(CANOPY_FOLDER_PATH))
         {
-            Log.Verbose("Folder doesn't exist, creating and copying default contents");
+            Log.Information("Folder doesn't exist, creating and copying default contents");
             Directory.CreateDirectory(CANOPY_FOLDER_PATH);
             Utils.CopyEmbeddedFolder(GetType().Assembly, "Canopy.Core.Resources", CANOPY_FOLDER_PATH);
         }
 
         if (!File.Exists(CONFIG_FILE_PATH))
         {
-            Log.Verbose("Config file doesn't exist.. creating new one");
+            Log.Information("Config file doesn't exist.. creating new one");
 
             File.Create(CONFIG_FILE_PATH).Close();
             var encodedText = Config.VERSIONED_CODEC.Encode(SynxTranscoder.INSTANCE, Config.DEFAULT).Object().EncodeToString();
@@ -120,7 +119,9 @@ public class Canopy(ICanopyPlatform platform)
 
     public void Refresh()
     {
+#if DEBUG
         Log.Debug("Refreshing state..");
+#endif
         var time = TIME_OF_DAY_PROVIDER.Get();
         var weather = WEATHER_PROVIDER.Get();
         var season = SEASON_PROVIDER.Get();
@@ -137,7 +138,9 @@ public class Canopy(ICanopyPlatform platform)
 
         if (lastState == state)
         {
+#if DEBUG
             Log.Debug("State is same, no updates");
+#endif
             return;
         }
 
@@ -152,11 +155,15 @@ public class Canopy(ICanopyPlatform platform)
         }
 
         Log.Information("Picked new wallpaper: {pick}!", next.Path);
+#if DEBUG
         Log.Verbose("Setting wallpaper via {type}", Platform.GetType().Name);
+#endif
         Platform.SetDesktop(ResolveWallpaperPath(next.Path));
 
         var message = new NewWallpaperMessage(DateTimeOffset.Now.ToUnixTimeMilliseconds(), next);
         WebsocketServer?.Send(message);
+
+        GC.Collect(2, GCCollectionMode.Optimized, blocking: false, compacting: true);
     }
 
     private record CanopyState(TimeOfDay Time, WeatherType Weather, SeasonType Season, Holiday? Holiday);
@@ -173,36 +180,32 @@ public class Canopy(ICanopyPlatform platform)
             }
         }
 
-        var eligible = CurrentConfig.Wallpapers.Filter(w =>
-            containsOrEmpty(w.Season, season) &&
-            containsOrEmpty(w.Time, time) &&
-            containsOrEmpty(w.Weather, weather) &&
-            w.Holiday.IsMissing
-        );
+        var topMatches = new List<Wallpaper>();
+        int topScore = -1;
 
-        if (eligible.IsEmpty()) return null;
-
-        var scored = eligible
-            .Select(w => (Wallpaper: w, Score: scoreWallpaper(w, time, weather, season)))
-            .ToList();
-
-        var topScore = scored.Max(s => s.Score);
-
-        Log.Verbose(" ");
-        Log.Verbose("Scorer:");
-        foreach (var (wallpaper, score) in scored)
+        foreach (var w in CurrentConfig.Wallpapers)
         {
-            Log.Verbose("{paper} - {score}", wallpaper.Path, score);
+            if (!w.Holiday.IsMissing ||
+                !containsOrEmpty(w.Season, season) ||
+                !containsOrEmpty(w.Time, time) ||
+                !containsOrEmpty(w.Weather, weather)) continue;
+
+            int score = scoreWallpaper(w, time, weather, season);
+            if (score > topScore)
+            {
+                topScore = score;
+                topMatches.Clear();
+                topMatches.Add(w);
+            }
+            else if (score == topScore)
+            {
+                topMatches.Add(w);
+            }
         }
-
-        Log.Verbose(" ");
-
-        var topMatches = scored.Where(s => s.Score == topScore).Select(s => s.Wallpaper).ToList();
-
         return topMatches.IsEmpty() ? null : topMatches.Random();
     }
 
-    private ICanopyPlatform.Theme getThemeForTimeOfDay(TimeOfDay time) =>
+    private static ICanopyPlatform.Theme getThemeForTimeOfDay(TimeOfDay time) =>
         time switch
         {
             TimeOfDay.Sunset or TimeOfDay.Morning or TimeOfDay.Afternoon => ICanopyPlatform.Theme.Light,
@@ -258,9 +261,6 @@ public class Canopy(ICanopyPlatform platform)
 
     public static string ResolveWallpaperPath(string rawPath)
     {
-        if (Path.IsPathRooted(rawPath))
-            return rawPath;
-
-        return Path.GetFullPath(Path.Combine(CANOPY_FOLDER_PATH, rawPath));
+        return Path.IsPathRooted(rawPath) ? rawPath : Path.GetFullPath(Path.Combine(CANOPY_FOLDER_PATH, rawPath));
     }
 }

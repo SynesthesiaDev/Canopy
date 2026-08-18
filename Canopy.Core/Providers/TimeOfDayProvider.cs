@@ -26,10 +26,12 @@ public class TimeOfDayProvider : IProvider<TimeOfDay>
         var sunriseStart = baseSunrise.AddMinutes(sunrise_offset_minutes);
         var sunsetStart = baseSunset.AddMinutes(sunset_offset_minutes);
 
+#if DEBUG
         Log.Verbose(" ");
         Log.Verbose("Solar Noon: {sun}", solarTimes.SolarNoon);
         Log.Verbose("Sunrise: {sun}", sunriseStart);
         Log.Verbose("Sunset: {sun}", sunsetStart);
+#endif
 
         var eventDuration = TimeSpan.FromMinutes(event_duration_minutes);
         var sunriseEnd = sunriseStart + eventDuration;

@@ -6,7 +6,7 @@ using Serilog;
 
 namespace Canopy.Server;
 
-public class CanopyWebsocketServer
+public class CanopyWebsocketServer : IDisposable
 {
     private readonly WebsocketServer websocketServer = new WebsocketServer("/update", Canopy.CurrentConfig.Websocket.Url);
     private ISocketMessage? lastMessage;
@@ -32,5 +32,11 @@ public class CanopyWebsocketServer
     public void Stop()
     {
         websocketServer.Stop();
+    }
+
+    public void Dispose()
+    {
+        websocketServer.Stop();
+        websocketServer.Dispose();
     }
 }

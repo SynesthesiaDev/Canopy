@@ -9,7 +9,7 @@ using Synesthesia.Utils.Events;
 
 namespace Canopy.Server;
 
-public class WebsocketServer
+public class WebsocketServer : IDisposable
 {
     private readonly HttpListener listener = new();
     private readonly string path;
@@ -46,7 +46,7 @@ public class WebsocketServer
             HttpListenerContext ctx;
             try
             {
-                ctx = await listener.GetContextAsync();
+                ctx = await listener.GetContextAsync().ConfigureAwait(false);
             }
             catch (HttpListenerException)
             {
@@ -57,7 +57,7 @@ public class WebsocketServer
                 break;
             }
 
-            if (ctx.Request.Url?.AbsolutePath != path || !ctx.Request.IsWebSocketRequest)
+            if (!string.Equals(ctx.Request.Url?.AbsolutePath, path, StringComparison.Ordinal) || !ctx.Request.IsWebSocketRequest)
             {
                 ctx.Response.StatusCode = 400;
                 ctx.Response.Close();
@@ -73,7 +73,7 @@ public class WebsocketServer
         WebSocketContext wsCtx;
         try
         {
-            wsCtx = await ctx.AcceptWebSocketAsync(null);
+            wsCtx = await ctx.AcceptWebSocketAsync(null).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -93,10 +93,10 @@ public class WebsocketServer
         {
             while (socket.State == WebSocketState.Open && !ct.IsCancellationRequested)
             {
-                var result = await socket.ReceiveAsync(buffer, ct);
+                var result = await socket.ReceiveAsync(buffer, ct).ConfigureAwait(false);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, ct);
+                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, ct).ConfigureAwait(false);
                     break;
                 }
             }
@@ -117,26 +117,31 @@ public class WebsocketServer
     public async Task Send(string text)
     {
         WebSocket[] activeSockets;
-        lock (@lock)
-        {
-            activeSockets = sockets.Where(s => s.State == WebSocketState.Open).ToArray();
-        }
-
+        lock (@lock) { activeSockets = sockets.ToArray(); }
         if (activeSockets.Length == 0) return;
 
         var bytes = Encoding.UTF8.GetBytes(text);
-        var sendTasks = activeSockets.Select(socket => Task.Run(async () =>
+        var tasks = new Task[activeSockets.Length];
+        for (int i = 0; i < activeSockets.Length; i++)
         {
-            try
-            {
-                await socket.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
-            }
-            catch (WebSocketException ex)
-            {
-                Log.Warning(ex, "(Websocket) -> Send failed, client likely disconnected");
-            }
-        }));
+            var socket = activeSockets[i];
+            tasks[i] = socket.State == WebSocketState.Open
+                ? sendAsync(socket, bytes)
+                : Task.CompletedTask;
+        }
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+    }
 
-        await Task.WhenAll(sendTasks);
+    private static async Task sendAsync(WebSocket socket, byte[] bytes)
+    {
+        try { await socket.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None).ConfigureAwait(false); }
+        catch (WebSocketException ex) { Log.Warning(ex, "(Websocket) -> Send failed, client likely disconnected"); }
+    }
+
+    public void Dispose()
+    {
+        ((IDisposable)listener).Dispose();
+        cts?.Dispose();
+        ClientConnected.Dispose();
     }
 }
