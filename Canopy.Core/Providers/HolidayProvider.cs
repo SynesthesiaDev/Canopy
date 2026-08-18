@@ -8,11 +8,13 @@ namespace Canopy.Providers;
 
 public class HolidayProvider : IProvider<Holiday?>
 {
+    private static readonly Holiday[] holidays = Enum.GetValues<Holiday>();
+
     public Holiday? Get()
     {
         var now = DateTimeOffset.Now;
         Holiday? activeHoliday = null;
-        foreach (var holiday in Enum.GetValues<Holiday>())
+        foreach (var holiday in holidays)
         {
             if (IsActive(holiday, now.DateTime))
             {
@@ -20,9 +22,13 @@ public class HolidayProvider : IProvider<Holiday?>
                 break;
             }
         }
+#if DEBUG
+
         Log.Verbose(" ");
         Log.Verbose("Holiday: {h}", activeHoliday);
         Log.Verbose(" ");
+#endif
+
         return activeHoliday;
     }
 

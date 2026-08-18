@@ -43,9 +43,12 @@ public class WeatherProvider : IProvider<WeatherType>
             _ => throw new ArgumentOutOfRangeException()
         };
 
+#if DEBUG
+
         Log.Verbose(" ");
         Log.Verbose("Weather: {w}", weatherType);
         Log.Verbose("Underlying: {w}", condition);
+#endif
         return weatherType;
     }
 

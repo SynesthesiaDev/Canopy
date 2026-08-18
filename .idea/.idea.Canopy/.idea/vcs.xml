@@ -19,6 +19,7 @@
     <mapping directory="$PROJECT_DIR$/../Syn" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../Synesthesia" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../Test" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../Website" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../fluXis" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../fluXis/Framework" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../lively" vcs="Git" />
