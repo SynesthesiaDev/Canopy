@@ -9,6 +9,7 @@ public interface ICanopyPlatform
     void SetTheme(Theme theme);
     void InitializeTray(Canopy canopy);
     void ShowNotification(string title, string message, NotificationLevel level = NotificationLevel.Info);
+    void ShowErrorPopup(string title, string message);
 
     void BlockThread();
 

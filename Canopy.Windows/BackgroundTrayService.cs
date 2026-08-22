@@ -54,10 +54,12 @@ public class BackgroundTrayService(Canopy canopy)
 
             while (GetMessage(out MSG msg, IntPtr.Zero) == 1)
             {
+
                 while (queue.TryDequeue(out var task))
                 {
                     task.Invoke();
                 }
+
                 TranslateMessage(in msg);
                 DispatchMessage(in msg);
             }

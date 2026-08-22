@@ -156,8 +156,8 @@ public class Canopy(ICanopyPlatform platform)
         var next = PickNextWallpaper(time, weather, season, holiday);
         if (next == null)
         {
-            Platform.ShowNotification("Canopy", $"No wallpaper configuration found for current state ({state})", ICanopyPlatform.NotificationLevel.Warning);
-            Log.Error("No wallpapers found for current state ({state})", state);
+            Platform.ShowErrorPopup("(Canopy) Error while picking wallpaper", "No wallpaper configuration found for current state ({state})");
+            Environment.Exit(-1);
             return;
         }
 
@@ -261,9 +261,10 @@ public class Canopy(ICanopyPlatform platform)
 
         if (error != null)
         {
-            Platform.ShowNotification("Canopy", error, ICanopyPlatform.NotificationLevel.Error);
             Log.Error(error);
-            Environment.Exit(0);
+            Platform.ShowErrorPopup("(Canopy) Error while parsing config", error);
+
+            Environment.Exit(-1);
         }
     }
 

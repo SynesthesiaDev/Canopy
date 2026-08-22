@@ -20,7 +20,7 @@ public class CanopyPlatformWindows : ICanopyPlatform
     RuntimeInfo.Platform ICanopyPlatform.Platform => RuntimeInfo.Platform.Windows;
     private const string registry_key_path = @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
 
-    private BackgroundTrayService backgroundTrayService = null!;
+    private BackgroundTrayService? backgroundTrayService;
 
     public void SetDesktop(string path)
     {
@@ -60,7 +60,6 @@ public class CanopyPlatformWindows : ICanopyPlatform
             Marshal.ReleaseComObject(wallpaper);
         }
     }
-
 
     public void SetTheme(ICanopyPlatform.Theme theme)
     {
@@ -121,12 +120,22 @@ public class CanopyPlatformWindows : ICanopyPlatform
             _ => throw new ArgumentOutOfRangeException(nameof(level), level, null)
         };
 
-        backgroundTrayService.ShowBalloon(title, message, icon);
+        backgroundTrayService?.ShowBalloon(title, message, icon);
+    }
+
+    public void ShowErrorPopup(string title, string message)
+    {
+        MessageBox(
+            HWND.NULL,
+            lpText: message,
+            lpCaption: title,
+            uType: MB_FLAGS.MB_OK | MB_FLAGS.MB_ICONERROR
+        );
     }
 
     public void BlockThread()
     {
-        backgroundTrayService.TrayThread?.Join();
+        backgroundTrayService?.TrayThread?.Join();
     }
 
     private static byte[] convertToBmp(byte[] sourceImageBytes)

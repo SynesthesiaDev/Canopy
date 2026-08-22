@@ -1,2 +1,2 @@
-﻿- Add support for VisualCrossing weather provider by defining `VisualCrossingApiKey` in the Weather section of the config
-- Fix enum fields that are null returning first item of enum instead of null 
+﻿- Removed outdated `resources` content
+- Add error popups when something fails instead of failing silently
