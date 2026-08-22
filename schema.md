@@ -73,6 +73,10 @@ Below are all schemas related to the config file.
     - Manual coordinates
     - Type: `Coordinates?`
 
+- `VisualCrossingApiKey`
+    - Optional key to VisualCrossing to provide more accurate weather data
+    - Type: `String?`
+
 ## Coordinates
 
 - `Latitude`

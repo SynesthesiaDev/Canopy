@@ -7,7 +7,7 @@ using Serilog;
 
 namespace Canopy.Providers;
 
-public class WeatherProvider : IProvider<WeatherType>
+public class OpenMeteoProvider : IProvider<WeatherType>
 {
     private static readonly OpenMeteoClient open_meteo_client = new OpenMeteoClient();
 
@@ -92,4 +92,8 @@ public class WeatherProvider : IProvider<WeatherType>
             95 or 96 or 99 => WeatherCondition.Thunderstorm,
             _ => WeatherCondition.Unknown
         };
+
+    public void Dispose()
+    {
+    }
 }

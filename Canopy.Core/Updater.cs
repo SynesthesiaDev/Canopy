@@ -8,7 +8,7 @@ using Velopack.Sources;
 
 namespace Canopy;
 
-public class Updater
+public static class Updater
 {
     public static async Task CheckForUpdates(Canopy canopy)
     {

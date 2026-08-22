@@ -94,4 +94,8 @@ public class HolidayProvider : IProvider<Holiday?>
 
         return new DateTime(year, monthIndex, dayOfMonth);
     }
+
+    public void Dispose()
+    {
+    }
 }

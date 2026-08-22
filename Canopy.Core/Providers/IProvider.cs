@@ -3,7 +3,7 @@
 
 namespace Canopy.Providers;
 
-public interface IProvider<out T>
+public interface IProvider<out T> : IDisposable
 {
     T Get();
 }

@@ -60,4 +60,9 @@ public class TimeOfDayProvider : IProvider<TimeOfDay>
 
         return TimeOfDay.DeepNight;
     }
+
+    public void Dispose()
+    {
+
+    }
 }

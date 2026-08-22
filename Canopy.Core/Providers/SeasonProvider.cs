@@ -21,4 +21,8 @@ public class SeasonProvider : IProvider<SeasonType>
 
         return SeasonType.Autumn;
     }
+
+    public void Dispose()
+    {
+    }
 }

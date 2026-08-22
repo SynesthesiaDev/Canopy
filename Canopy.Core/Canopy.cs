@@ -3,6 +3,7 @@
 
 using Canopy.Configuration;
 using Canopy.Providers;
+using Canopy.Providers.VisualCrossing;
 using Canopy.Server;
 using Canopy.Server.Messages;
 using Serilog;
@@ -19,10 +20,11 @@ public class Canopy(ICanopyPlatform platform)
     public static Config CurrentConfig = null!;
 
     public static readonly GeopositionProvider GEOPOSITION_PROVIDER = new GeopositionProvider();
-    public static readonly WeatherProvider WEATHER_PROVIDER = new WeatherProvider();
     public static readonly TimeOfDayProvider TIME_OF_DAY_PROVIDER = new TimeOfDayProvider();
     public static readonly SeasonProvider SEASON_PROVIDER = new SeasonProvider();
     public static readonly HolidayProvider HOLIDAY_PROVIDER = new HolidayProvider();
+
+    public static IProvider<WeatherType>? WeatherProvider;
 
     private CanopyState? lastState;
 
@@ -69,6 +71,11 @@ public class Canopy(ICanopyPlatform platform)
     public void LoadRefreshable()
     {
         loadConfig();
+
+        WeatherProvider?.Dispose();
+        WeatherProvider = CurrentConfig.Weather.VisualCrossingApiKey != null ? new VisualCrossingProvider() : new OpenMeteoProvider();
+
+        Log.Verbose("Using {provider} as weather  provider", WeatherProvider.GetType().Name);
         lastState = null;
         GEOPOSITION_PROVIDER.InvalidateCache();
 
@@ -123,7 +130,7 @@ public class Canopy(ICanopyPlatform platform)
         Log.Debug("Refreshing state..");
 #endif
         var time = TIME_OF_DAY_PROVIDER.Get();
-        var weather = WEATHER_PROVIDER.Get();
+        var weather = WeatherProvider?.Get() ?? WeatherType.Clear;
         var season = SEASON_PROVIDER.Get();
         var holiday = HOLIDAY_PROVIDER.Get();
 
@@ -154,7 +161,7 @@ public class Canopy(ICanopyPlatform platform)
             return;
         }
 
-        Log.Information("Picked new wallpaper: {pick}!", next.Path);
+        Log.Information("Picked new wallpaper: {pick} with state {state}!", next.Path, state);
 #if DEBUG
         Log.Verbose("Setting wallpaper via {type}", Platform.GetType().Name);
 #endif
@@ -202,6 +209,7 @@ public class Canopy(ICanopyPlatform platform)
                 topMatches.Add(w);
             }
         }
+
         return topMatches.IsEmpty() ? null : topMatches.Random();
     }
 

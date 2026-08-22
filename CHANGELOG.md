@@ -1,1 +1,2 @@
-﻿- Various memory and garbage collection optimizations
+﻿- Add support for VisualCrossing weather provider by defining `VisualCrossingApiKey` in the Weather section of the config
+- Fix enum fields that are null returning first item of enum instead of null 

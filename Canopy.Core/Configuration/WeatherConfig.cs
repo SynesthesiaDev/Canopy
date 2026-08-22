@@ -2,13 +2,15 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using Codon.Codec;
+using Codon.Optionals;
 
 namespace Canopy.Configuration;
 
 public record WeatherConfig(
     bool UseAutoLocation,
     WeatherConfig.OfflineMode OfflineFallback,
-    WeatherConfig.ManualCoordinates? Coordinates
+    WeatherConfig.ManualCoordinates? Coordinates,
+    string? VisualCrossingApiKey = null
 )
 {
     public static readonly WeatherConfig DEFAULT = new WeatherConfig(true, OfflineMode.UseLastKnownState, new ManualCoordinates(Latitude: 50.087555, Longitude: 14.421194));
@@ -17,7 +19,8 @@ public record WeatherConfig(
         .Field("UseAutoLocation", Codecs.BOOLEAN, w => w.UseAutoLocation)
         .Field("OfflineFallback", Codecs.Enum<OfflineMode>(), w => w.OfflineFallback)
         .Field("Coordinates", ManualCoordinates.CODEC.Optional(), w => w.Coordinates.ToOptional())
-        .Build((b, arg3, arg4) => new WeatherConfig(b, arg3, arg4.Value));
+        .Field("VisualCrossingApiKey", Codecs.STRING.Optional(), w => w.VisualCrossingApiKey.ToOptional())
+        .Build((b, arg3, arg4, apiKey) => new WeatherConfig(b, arg3, arg4.ToNullableClass(), apiKey.ToNullableClass()));
 
     public enum OfflineMode
     {

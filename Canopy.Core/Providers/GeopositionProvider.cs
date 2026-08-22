@@ -47,4 +47,9 @@ public class GeopositionProvider : IProvider<GeopositionProvider.GeoPosition>
             .Field("lon", Codecs.DOUBLE, r => r.Lon)
             .Build((lat, lon) => new GeoPosition(lat, lon));
     }
+
+    public void Dispose()
+    {
+        InvalidateCache();
+    }
 }

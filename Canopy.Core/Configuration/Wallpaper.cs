@@ -45,7 +45,7 @@ public record Wallpaper(
             Time: [],
             Weather: [],
             Season: [],
-            Holiday: Optional.Of(Configuration.Holiday.Halloween),
+            Holiday: Optional.Of<Holiday>(Configuration.Holiday.Halloween),
             Accent: "#f56b3d"
         ),
 
