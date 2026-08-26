@@ -58,8 +58,23 @@ public class Canopy(ICanopyPlatform platform)
             using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(CurrentConfig.General.RefreshPeriod));
             while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
             {
-                Refresh();
-                await Updater.CheckForUpdates(this).ConfigureAwait(false);
+                try
+                {
+                    Refresh();
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Failed to refresh");
+                }
+
+                try
+                {
+                    await Updater.CheckForUpdates(this).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Failed to fetch update");
+                }
             }
         });
 
@@ -127,7 +142,7 @@ public class Canopy(ICanopyPlatform platform)
     public void Refresh()
     {
 #if DEBUG
-        Log.Debug("Refreshing state..");
+        Log.Debug("Refreshing state.. ({time})", DateTime.Now);
 #endif
         var time = TIME_OF_DAY_PROVIDER.Get();
         var weather = WeatherProvider?.Get() ?? WeatherType.Clear;

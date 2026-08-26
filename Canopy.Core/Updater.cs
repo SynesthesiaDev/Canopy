@@ -35,7 +35,6 @@ public static class Updater
         catch (NotInstalledException)
         {
             Log.Warning("Skipping update check, app running in dev mode");
-            throw;
         }
     }
 }

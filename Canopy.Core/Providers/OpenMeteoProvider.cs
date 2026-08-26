@@ -10,46 +10,59 @@ namespace Canopy.Providers;
 public class OpenMeteoProvider : IProvider<WeatherType>
 {
     private static readonly OpenMeteoClient open_meteo_client = new OpenMeteoClient();
+    private WeatherType lastCached = WeatherType.Clear;
 
     public WeatherType Get()
     {
-        var geo = Canopy.GEOPOSITION_PROVIDER.Get();
-        var weather = open_meteo_client.GetCurrentWeather(geo.Lat, geo.Lon).GetAwaiter().GetResult();
-
-        var condition = ToWeatherCondition(weather.WeatherCode!.Value);
-
-        var weatherType = condition switch
+        try
         {
-            WeatherCondition.ClearSky or
-                WeatherCondition.MainlyClear or
-                WeatherCondition.Unknown => WeatherType.Clear,
+            var geo = Canopy.GEOPOSITION_PROVIDER.Get();
+            var weather = open_meteo_client.GetCurrentWeather(geo.Lat, geo.Lon).GetAwaiter().GetResult();
 
-            WeatherCondition.PartlyCloudy or
-                WeatherCondition.Overcast or
-                WeatherCondition.Fog => WeatherType.Cloudy,
+            var condition = ToWeatherCondition(weather.WeatherCode!.Value);
 
-            WeatherCondition.DrizzleLight or
-                WeatherCondition.DrizzleModerate or
-                WeatherCondition.DrizzleDense or
-                WeatherCondition.RainSlight or
-                WeatherCondition.RainModerate or
-                WeatherCondition.RainHeavy or
-                WeatherCondition.SnowSlight or
-                WeatherCondition.SnowModerate or
-                WeatherCondition.SnowHeavy => WeatherType.Rainy,
+            var weatherType = condition switch
+            {
+                WeatherCondition.ClearSky or
+                    WeatherCondition.MainlyClear or
+                    WeatherCondition.Unknown => WeatherType.Clear,
 
-            WeatherCondition.Thunderstorm => WeatherType.Stormy,
+                WeatherCondition.PartlyCloudy or
+                    WeatherCondition.Overcast or
+                    WeatherCondition.Fog => WeatherType.Cloudy,
 
-            _ => throw new ArgumentOutOfRangeException()
-        };
+                WeatherCondition.DrizzleLight or
+                    WeatherCondition.DrizzleModerate or
+                    WeatherCondition.DrizzleDense or
+                    WeatherCondition.RainSlight or
+                    WeatherCondition.RainModerate or
+                    WeatherCondition.RainHeavy or
+                    WeatherCondition.SnowSlight or
+                    WeatherCondition.SnowModerate or
+                    WeatherCondition.SnowHeavy => WeatherType.Rainy,
+
+                WeatherCondition.Thunderstorm => WeatherType.Stormy,
+
+                _ => throw new ArgumentOutOfRangeException()
+            };
 
 #if DEBUG
 
-        Log.Verbose(" ");
-        Log.Verbose("Weather: {w}", weatherType);
-        Log.Verbose("Underlying: {w}", condition);
+            Log.Verbose(" ");
+            Log.Verbose("Weather: {w}", weatherType);
+            Log.Verbose("Underlying: {w}", condition);
 #endif
-        return weatherType;
+
+            lastCached = weatherType;
+
+            return weatherType;
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Error while fetching weather with OpenMeteoProvider, providing last cached weather ({cached})", lastCached);
+            return lastCached;
+        }
+
     }
 
     public enum WeatherCondition
