@@ -8,8 +8,10 @@ using Canopy.Server;
 using Canopy.Server.Messages;
 using Serilog;
 using Synesthesia.Utils.Extensions;
-using SynesthesiaDev.Synx;
+using SynesthesiaDev.ConfigLibrary;
+using SynesthesiaDev.ConfigLibrary.Location;
 using SynesthesiaDev.Synx.Codon;
+using SynesthesiaDev.Synx.Types;
 
 namespace Canopy;
 
@@ -17,31 +19,33 @@ public class Canopy(ICanopyPlatform platform)
 {
     public readonly ICanopyPlatform Platform = platform;
 
-    public static Config CurrentConfig = null!;
+    public static Config CurrentConfig => CONFIG.Current;
 
     public static readonly GeopositionProvider GEOPOSITION_PROVIDER = new GeopositionProvider();
     public static readonly TimeOfDayProvider TIME_OF_DAY_PROVIDER = new TimeOfDayProvider();
     public static readonly SeasonProvider SEASON_PROVIDER = new SeasonProvider();
     public static readonly HolidayProvider HOLIDAY_PROVIDER = new HolidayProvider();
 
+    public static readonly ConfigLib<Config, ISynxElement> CONFIG = ConfigLib.For<Config, ISynxElement>()
+        .Encoding(Config.VERSIONED_CODEC, SynxTranscoder.INSTANCE)
+        .Default(Config.DEFAULT)
+#if DEBUG
+        .Location(ConfigLocation.UserFolder(".canopy-development", "config.synx"))
+#else
+        .Location(ConfigLocation.UserFolder(".canopy", "config.synx"))
+#endif
+        .DirectoryCreateHook(location =>
+        {
+            Utils.CopyEmbeddedFolder(typeof(Canopy).Assembly, "Canopy.Core.Resources", location.FolderPath);
+        })
+        .Build();
+
+
     public static IProvider<WeatherType>? WeatherProvider;
 
     private CanopyState? lastState;
 
-#if DEBUG
-    public static readonly string CANOPY_FOLDER_PATH = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        ".canopy-development"
-    );
-#else
-    public static readonly string CANOPY_FOLDER_PATH = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        ".canopy"
-    );
-#endif
-
     public static bool ConfigMigrated = false;
-    public static readonly string CONFIG_FILE_PATH = Path.Combine(CANOPY_FOLDER_PATH, "config.synx");
 
     public CanopyWebsocketServer? WebsocketServer;
 
@@ -106,34 +110,7 @@ public class Canopy(ICanopyPlatform platform)
 
     private void loadConfig()
     {
-        if (!Directory.Exists(CANOPY_FOLDER_PATH))
-        {
-            Log.Information("Folder doesn't exist, creating and copying default contents");
-            Directory.CreateDirectory(CANOPY_FOLDER_PATH);
-            Utils.CopyEmbeddedFolder(GetType().Assembly, "Canopy.Core.Resources", CANOPY_FOLDER_PATH);
-        }
-
-        if (!File.Exists(CONFIG_FILE_PATH))
-        {
-            Log.Information("Config file doesn't exist.. creating new one");
-
-            File.Create(CONFIG_FILE_PATH).Close();
-            var encodedText = Config.VERSIONED_CODEC.Encode(SynxTranscoder.INSTANCE, Config.DEFAULT).Object().EncodeToString();
-            File.WriteAllText(CONFIG_FILE_PATH, encodedText);
-
-            CurrentConfig = Config.DEFAULT;
-        }
-        else
-        {
-            var decoded = Config.VERSIONED_CODEC.Decode(SynxTranscoder.INSTANCE, File.ReadAllText(CONFIG_FILE_PATH).ToSynxObject());
-            CurrentConfig = decoded;
-            if (ConfigMigrated)
-            {
-                var encoded = Config.VERSIONED_CODEC.Encode(SynxTranscoder.INSTANCE, CurrentConfig).Object().EncodeToString();
-                File.WriteAllText(CONFIG_FILE_PATH, encoded);
-                Log.Information("A migration was applied to your config and it was re-written");
-            }
-        }
+        CONFIG.Load();
 
         Log.Information("Loaded {wallpapers} wallpapers", CurrentConfig.Wallpapers.Count);
         validateConfig();
@@ -285,6 +262,6 @@ public class Canopy(ICanopyPlatform platform)
 
     public static string ResolveWallpaperPath(string rawPath)
     {
-        return Path.IsPathRooted(rawPath) ? rawPath : Path.GetFullPath(Path.Combine(CANOPY_FOLDER_PATH, rawPath));
+        return Path.IsPathRooted(rawPath) ? rawPath : Path.GetFullPath(Path.Combine(CONFIG.Location.FolderPath, rawPath));
     }
 }

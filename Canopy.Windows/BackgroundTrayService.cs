@@ -42,7 +42,7 @@ public class BackgroundTrayService(Canopy canopy)
             }
 
             var menu = new PopupMenu();
-            menu.Items.Add(new PopupMenuItem("Open Config Folder", (_, _) => Utils.OpenFolder(Canopy.CANOPY_FOLDER_PATH)));
+            menu.Items.Add(new PopupMenuItem("Open Config Folder", (_, _) => Utils.OpenFolder(Canopy.CONFIG.Location.FolderPath)));
             menu.Items.Add(new PopupMenuItem("Reload Config", (_, _) => canopy.LoadRefreshable()));
             menu.Items.Add(new PopupMenuItem("Dark Theme", (_, _) => canopy.Platform.SetTheme(ICanopyPlatform.Theme.Dark)));
             menu.Items.Add(new PopupMenuItem("Light Theme", (_, _) => canopy.Platform.SetTheme(ICanopyPlatform.Theme.Light)));

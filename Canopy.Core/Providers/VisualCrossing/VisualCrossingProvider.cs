@@ -79,7 +79,12 @@ public class VisualCrossingProvider : IProvider<WeatherType>
             }
             else if (weatherType == WeatherType.Clear && icon == VcIcon.Unknown)
             {
-                weatherType = result.CloudCover > 25 ? WeatherType.Cloudy : WeatherType.Clear;
+                weatherType = result.CloudCover > 35 ? WeatherType.Cloudy : WeatherType.Clear;
+            }
+
+            if (weatherType == WeatherType.Cloudy)
+            {
+                weatherType = result.CloudCover > 35 ? WeatherType.Cloudy : WeatherType.Clear;
             }
 
 #if DEBUG

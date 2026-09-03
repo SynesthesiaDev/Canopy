@@ -4,6 +4,7 @@
 using Codon.Codec;
 using Codon.Codec.Versioned;
 using Synesthesia.Utils.Extensions;
+using SynesthesiaDev.ConfigLibrary;
 using SynesthesiaDev.Synx;
 using SynesthesiaDev.Synx.Codon;
 using SynesthesiaDev.Synx.Types;
@@ -19,7 +20,7 @@ public record Config(
     WeatherConfig Weather,
     WebsocketConfig Websocket,
     List<Wallpaper> Wallpapers
-)
+) : IConfigModel
 {
     public static readonly Config DEFAULT = new Config
     (

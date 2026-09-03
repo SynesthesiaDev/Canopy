@@ -16,8 +16,10 @@
     <mapping directory="$PROJECT_DIR$/../OpenRhythm" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../OsuFrameworkGridKit" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../SYML" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../SpaceInvaders" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../Syn" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../Synesthesia" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../SynesthesiaDev.ConfigLib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../Test" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../Website" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../fluXis" vcs="Git" />
