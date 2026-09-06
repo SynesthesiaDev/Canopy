@@ -40,7 +40,6 @@ public class Canopy(ICanopyPlatform platform)
         })
         .Build();
 
-
     public static IProvider<WeatherType>? WeatherProvider;
 
     private CanopyState? lastState;

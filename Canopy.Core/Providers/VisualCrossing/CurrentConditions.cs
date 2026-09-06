@@ -12,6 +12,7 @@ public record CurrentConditions(
     double SnowDepth,
     double Visibility,
     double CloudCover,
+    double SolarRadiation,
     string Conditions,
     string Icon
 )
@@ -24,7 +25,8 @@ public record CurrentConditions(
         .Field("snowdepth", Codecs.DOUBLE, c => c.SnowDepth)
         .Field("visibility", Codecs.DOUBLE, c => c.Visibility)
         .Field("cloudcover", Codecs.DOUBLE, c => c.CloudCover)
+        .Field("solarradiation", Codecs.DOUBLE, c => c.SolarRadiation)
         .Field("conditions", Codecs.STRING, c => c.Conditions)
         .Field("icon", Codecs.STRING, c => c.Icon)
-        .Build((humidity, precip, snow, snowdepth, visibility, cloudcover, conditions, icon) => new CurrentConditions(humidity, precip, snow, snowdepth, visibility, cloudcover, conditions, icon));
+        .Build((humidity, precip, snow, snowdepth, visibility, cloudcover, solar, conditions, icon) => new CurrentConditions(humidity, precip, snow, snowdepth, visibility, cloudcover, solar, conditions, icon));
 }

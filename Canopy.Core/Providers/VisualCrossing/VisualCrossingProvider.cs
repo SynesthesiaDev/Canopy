@@ -29,7 +29,7 @@ public class VisualCrossingProvider : IProvider<WeatherType>
             if (query.Count == 0)
             {
                 query["unitGroup"] = "us";
-                query["elements"] = "cloudcover,conditions,humidity,icon,name,offset,precip,precipremote,preciptype,snow,snowdepth,visibility";
+                query["elements"] = "cloudcover,conditions,humidity,icon,name,offset,precip,precipremote,preciptype,snow,snowdepth,visibility,solarradiation,solarenergy";
                 query["include"] = "current";
                 query["key"] = Canopy.CurrentConfig.Weather.VisualCrossingApiKey!;
                 query["contentType"] = "json";
@@ -77,13 +77,32 @@ public class VisualCrossingProvider : IProvider<WeatherType>
             {
                 weatherType = WeatherType.Rainy;
             }
-            else if (weatherType == WeatherType.Clear && icon == VcIcon.Unknown)
-            {
-                weatherType = result.CloudCover > 35 ? WeatherType.Cloudy : WeatherType.Clear;
-            }
 
-            if (weatherType == WeatherType.Cloudy)
+            var elevation = ClearSkyModel.SolarElevationDegrees(geo.Lat, geo.Lon, DateTimeOffset.Now);
+            bool isDaytime = elevation > 5.0;
+
+            if (isDaytime && !hasThunder && !hasMeasurablePrecip)
             {
+                double clearSkyRadiation = ClearSkyModel.EstimateClearSkyRadiation(elevation);
+                double ratio = clearSkyRadiation > 1.0
+                    ? Math.Clamp(result.SolarRadiation / clearSkyRadiation, 0.0, 1.5)
+                    : 1.0;
+
+                weatherType = ratio switch
+                {
+                    >= 0.75 => WeatherType.Clear,
+                    >= 0.40 => WeatherType.Cloudy,
+                    _ => WeatherType.Cloudy
+                };
+
+#if DEBUG
+                Log.Verbose("SolarRatio: {r:0.00} (measured {m}, clearSky {c:0.00}), elevation {e:0.00}",
+                    ratio, result.SolarRadiation, clearSkyRadiation, elevation);
+#endif
+            }
+            else if (!hasThunder && !hasMeasurablePrecip && (weatherType == WeatherType.Cloudy || (weatherType == WeatherType.Clear && icon == VcIcon.Unknown)))
+            {
+                // Night/twilight fallback cause the sun do not radiate when it night
                 weatherType = result.CloudCover > 35 ? WeatherType.Cloudy : WeatherType.Clear;
             }
 

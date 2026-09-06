@@ -11,6 +11,7 @@
     <mapping directory="$PROJECT_DIR$/../ExonBreak" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../GameProtocolKit" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../K1WeatherApi" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../Mocha" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../MusescoreDownloader" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../Nocturne" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../OpenRhythm" vcs="Git" />
