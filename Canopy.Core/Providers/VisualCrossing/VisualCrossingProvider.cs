@@ -24,6 +24,7 @@ public class VisualCrossingProvider : IProvider<WeatherType>
         {
             var geo = Canopy.GEOPOSITION_PROVIDER.Get();
             string location = $"{geo.Lat.ToString(System.Globalization.CultureInfo.InvariantCulture)},{geo.Lon.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            Log.Verbose("Input location: {location}", location);
             string baseUrl = $"{api_endpoint}{Uri.EscapeDataString(location)}/today";
 
             if (query.Count == 0)
@@ -41,6 +42,9 @@ public class VisualCrossingProvider : IProvider<WeatherType>
             var response = http_client.Send(message);
             var body = response.Content.ReadAsStringAsync().Result;
 
+#if DEBUG
+            Log.Verbose(body);
+#endif
             var json = JsonDocument.Parse(body).RootElement;
             var decoded = VisualCrossingResponse.CODEC.Decode(JsonTranscoder.INSTANCE, json);
 
@@ -79,7 +83,7 @@ public class VisualCrossingProvider : IProvider<WeatherType>
             }
 
             var elevation = ClearSkyModel.SolarElevationDegrees(geo.Lat, geo.Lon, DateTimeOffset.Now);
-            bool isDaytime = elevation > 5.0;
+            bool isDaytime = elevation > 15.0; // was 7.0, Haurwitz model is unreliable below this
 
             if (isDaytime && !hasThunder && !hasMeasurablePrecip)
             {
@@ -88,10 +92,10 @@ public class VisualCrossingProvider : IProvider<WeatherType>
                     ? Math.Clamp(result.SolarRadiation / clearSkyRadiation, 0.0, 1.5)
                     : 1.0;
 
-                weatherType = ratio switch
+                weatherType = (result.CloudCover < 40, ratio) switch
                 {
-                    >= 0.75 => WeatherType.Clear,
-                    >= 0.40 => WeatherType.Cloudy,
+                    (true, _) => WeatherType.Clear,
+                    (false, >= 0.60) => WeatherType.Clear,
                     _ => WeatherType.Cloudy
                 };
 

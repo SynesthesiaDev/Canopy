@@ -109,7 +109,16 @@ public class Canopy(ICanopyPlatform platform)
 
     private void loadConfig()
     {
-        CONFIG.Load();
+        try
+        {
+            CONFIG.Load();
+        }
+        catch (Exception e)
+        {
+            Platform.ShowErrorPopup("Failed to load Canopy config:", e.ToString());
+            Console.WriteLine(e);
+            throw;
+        }
 
         Log.Information("Loaded {wallpapers} wallpapers", CurrentConfig.Wallpapers.Count);
         validateConfig();

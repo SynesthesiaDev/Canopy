@@ -10,7 +10,7 @@ namespace Canopy.Providers;
 
 public class TimeOfDayProvider : IProvider<TimeOfDay>
 {
-    private const int sunrise_offset_minutes = 60;
+    private const int sunrise_offset_minutes = 20;
     private const int sunset_offset_minutes = -100;
     private const int event_duration_minutes = 60;
 
