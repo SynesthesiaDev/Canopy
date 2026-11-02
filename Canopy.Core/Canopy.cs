@@ -25,6 +25,7 @@ public class Canopy(ICanopyPlatform platform)
     public static readonly TimeOfDayProvider TIME_OF_DAY_PROVIDER = new TimeOfDayProvider();
     public static readonly SeasonProvider SEASON_PROVIDER = new SeasonProvider();
     public static readonly HolidayProvider HOLIDAY_PROVIDER = new HolidayProvider();
+    public static readonly ThemeProvider THEME_PROVIDER = new ThemeProvider();
 
     public static readonly ConfigLib<Config, ISynxElement> CONFIG = ConfigLib.For<Config, ISynxElement>()
         .Encoding(Config.VERSIONED_CODEC, SynxTranscoder.INSTANCE)
@@ -138,7 +139,7 @@ public class Canopy(ICanopyPlatform platform)
 
         if (CurrentConfig.System.ChangeSystemThemesDependingOnTime && time != lastState?.Time)
         {
-            var theme = getThemeForTimeOfDay(time);
+            var theme = THEME_PROVIDER.Get();
             Log.Information("Changing system theme to {theme}", theme);
             Platform.SetTheme(theme);
         }
@@ -212,14 +213,6 @@ public class Canopy(ICanopyPlatform platform)
 
         return topMatches.IsEmpty() ? null : topMatches.Random();
     }
-
-    private static ICanopyPlatform.Theme getThemeForTimeOfDay(TimeOfDay time) =>
-        time switch
-        {
-            TimeOfDay.Sunset or TimeOfDay.Morning or TimeOfDay.Afternoon => ICanopyPlatform.Theme.Light,
-            TimeOfDay.Sunrise or TimeOfDay.Night or TimeOfDay.DeepNight => ICanopyPlatform.Theme.Dark,
-            _ => ICanopyPlatform.Theme.Light
-        };
 
     private static int scoreWallpaper(Wallpaper w, TimeOfDay time, WeatherType weather, SeasonType season)
     {

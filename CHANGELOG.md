@@ -1,2 +1,2 @@
-﻿- Removed outdated `resources` content
-- Add error popups when something fails instead of failing silently
+﻿- Theme now changes depending on time AND weather. (i.e if its overcast/rainy/stormy theme switches to dark)
+- Halloween and Christmas now end on the 2nd following month instead of the 7th

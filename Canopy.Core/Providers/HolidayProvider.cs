@@ -48,11 +48,11 @@ public class HolidayProvider : IProvider<Holiday?>
                 new DateTime(year, 12, 27, 23, 59, 59)
             ),
 
-            // New Year: Dec 30 to Jan 3
-            Holiday.NewYear => (new DateTime(year - 1, 12, 28), new DateTime(year, 1, 7, 23, 59, 59)),
+            // New Year: Dec 30 to Jan 2
+            Holiday.NewYear => (new DateTime(year - 1, 12, 28), new DateTime(year, 1, 1, 23, 59, 59)),
 
-            // Halloween: Oct 15 to Nov 3
-            Holiday.Halloween => (new DateTime(year, 10, 15), new DateTime(year, 11, 3, 23, 59, 59)),
+            // Halloween: Oct 15 to Nov 2
+            Holiday.Halloween => (new DateTime(year, 10, 15), new DateTime(year, 11, 1, 23, 59, 59)),
 
             Holiday.Easter => getEasterWindow(year, daysBefore: 7, daysAfter: 7),
 
