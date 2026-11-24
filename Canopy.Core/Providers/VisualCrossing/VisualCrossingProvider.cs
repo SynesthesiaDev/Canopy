@@ -24,7 +24,6 @@ public class VisualCrossingProvider : IProvider<WeatherType>
         {
             var geo = Canopy.GEOPOSITION_PROVIDER.Get();
             string location = $"{geo.Lat.ToString(System.Globalization.CultureInfo.InvariantCulture)},{geo.Lon.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
-            Log.Verbose("Input location: {location}", location);
             string baseUrl = $"{api_endpoint}{Uri.EscapeDataString(location)}/today";
 
             if (query.Count == 0)
@@ -83,7 +82,7 @@ public class VisualCrossingProvider : IProvider<WeatherType>
             }
 
             var elevation = ClearSkyModel.SolarElevationDegrees(geo.Lat, geo.Lon, DateTimeOffset.Now);
-            bool isDaytime = elevation > 15.0; // was 7.0, Haurwitz model is unreliable below this
+            bool isDaytime = elevation > 8.5; // was 7.0, Haurwitz model is unreliable below this
 
             if (isDaytime && !hasThunder && !hasMeasurablePrecip)
             {
